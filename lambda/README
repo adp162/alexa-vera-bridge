@@ -1,0 +1,39 @@
+This directory contains all the files needed for the AWS Lambda function to
+respond to events from the Alexa Skill we defined. Because we rely on
+multiple files we can't simply use the inline editor in the Lambda web 
+interface. Instead, we package all our files as a single zip file and upload
+this to Lambda.
+
+-------------------------
+Installing Dependencies
+-------------------------
+
+AWS CLI tools
+---------------
+See the documentation at http://aws.amazon.com/cli/
+Other links:
+http://docs.aws.amazon.com/cli/latest/reference/lambda/index.html
+http://docs.aws.amazon.com/lambda/latest/dg/setup.html
+
+Basic steps:
+ - pip install awscli
+ - setup IAM user
+ - configure awscli with userID/secret
+
+Security Assets
+-----------------
+You need to point the upload script to the path where the keys/certs you use
+are stored.
+
+Python modules
+----------------
+Current we don't use any. If you do, you need to upload the module along with
+your code. See the AWS Lambda documentation for more info:
+
+http://docs.aws.amazon.com/lambda/latest/dg/lambda-python-how-to-create-deployment-package.html
+
+---------------------
+Uploading to Lambda
+---------------------
+To create the zip file to upload, simply run the upload.sh script. If the AWS
+CLI tools are installed this script also uploads the bundle to Lambda.

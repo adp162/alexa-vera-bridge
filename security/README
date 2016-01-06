@@ -1,0 +1,80 @@
+--------------------------------------
+- Basic Network Security Information -
+--------------------------------------
+Information on generating keys and certificates used to secure communication
+between a remote client (Lambda) and the server running on local network.
+
+You can choose to either use simple symmetric key encryption or TLS with mutual
+authentication.
+
+-------------------------------
+Create AES key for encryption
+-------------------------------
+Really this boils down to just getting 256 bits of randomness and writing them
+to a file. We base64 encode the bits because that is an easy format to ingest.
+We can use openssl to get these bits.
+
+ $ openssl rand -base64 32 > ./user/psk.bin
+
+To try out encrypting and decrypting use the following commands:
+
+ $ echo "super secret stuff!" > msg.txt
+ $ openssl enc -aes-256-cbc -salt -in msg.txt -out msg.enc -pass file:./user/psk.bin
+ $ cat msg.enc
+ $ openssl enc -d -aes-256-cbc -in msg.enc -out msg.dec -pass file:./user/psk.bin
+ $ cat msg.dec
+
+Here we encode an arbitrary length method using AES with a 256 bit key in
+cipher-block-chain (CBC) mode. The -salt option adds a random prefix to msg.txt
+so that each encryption produces a different result. cat-ing the msg.enc file 
+shows you the encrypted message and cat-ing the msg.dec file should show you the
+original msg.txt
+ 
+----------------
+Create root CA
+----------------
+First create a root key. This key is SECRET and is the root of all trust!!
+
+ $ openssl genrsa -aes256 -out ./user/rootCA.key 2048
+
+The -aes256 switch is optional but adds an extra layer of security by
+requiring a password every time you use the root key. For our sample, the
+password is 'password'.
+
+Create the self-signed root certificate:
+
+ $ openssl req -x509 -new -nodes -key ./user/rootCA.key -days 3650 -out ./user/rootCA.pem
+
+You will be asked a number of questions, but it doesn't really matter what you
+answer. The root certificate is set to expire after 10 years.
+
+----------------------------
+Create client/server certs
+----------------------------
+For each device, generate a key and a certificate signing request. Replace
+<device> with either client or server depending on which key/cert you're creating.
+
+ $ openssl genrsa -out ./user/<device>.key 2048
+ $ openssl req -new -key ./user/<device>.key -out ./user/<device>.csr
+
+Once again, keep the .key file PRIVATE on whatever device it belongs to. We'll
+be asked a bunch of questions again but this time pay close attention to the
+"Common Name". This has to match whatever the device IP or hostname is for the
+certificate to validate correctly.
+
+Now create the certificate
+
+ $ openssl x509 -req -in ./user/<device>.csr -CA ./user/rootCA.pem -CAkey ./user/rootCA.key -CAcreateserial -out ./user/<device>.crt -days 1095
+
+This creates a device certificate valid for 3 years.
+
+---------
+Testing
+---------
+Sample keys and certificates generated with the above steps can be found in
+the sample/ folder.
+
+You can test the various keys and certificates by running the security_test.py
+Python file. It uses the sample keys and certs created to do the same operations
+that would happen between the client and server.
+
