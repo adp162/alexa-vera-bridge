@@ -18,3 +18,5 @@ TODO
    - multi-threaded server design (timeout dead connections)
    - more error checking
  - install server as service
+ - logging feature
+ - abstract out messaging protocol to Vera (or make it more extensible?)
