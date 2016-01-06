@@ -1,0 +1,73 @@
+----------------------------------
+- Basic Raspberry Pi Information -
+----------------------------------
+This file contains some useful information if you're using a Raspberry Pi to
+run the server.
+
+---------------------
+Creating an SD Card
+---------------------
+The Pi runs its entire filesystem off of the SD card you provide. With a blank
+card, the starting point is to write the Raspbian (or other) image you're using.
+The easiest way is to use dd as follows:
+
+ $ dd
+
+------------------
+Configuring WiFi
+------------------
+Modify the file /etc/wpa_supplicant/wpa_supplicant.conf to include your WiFi
+SSID and passphrase. This must be done as root.
+
+ $ sudo vi /etc/wpa_supplicant/wpa_supplicant.conf
+
+Enter:
+network={
+    ssid="<SSID>"
+    psk="<PASSWORD>"
+}
+
+Replacing <SSID> and <PASSWORD> with appropriate values.
+
+----------------
+Login Security
+----------------
+You will almost definitely want to change the default password "raspberry" for
+the default user "pi". This can be accomplised using 'passwd'.
+
+ $ passwd
+
+Follow the prompts. You can also delete the pi user and add your own username.
+See https://www.raspberrypi.org/documentation/linux/usage/users.md
+
+------------------------
+Remote access over SSH
+------------------------
+Connect to your Pi over a secure shell as follows:
+
+ $ ssh pi@<IP/hostname>
+
+Replace <IP/hostname> with either you Pi's IP address or hostname if you have
+configured one. When prompted, accept the server certificate and enter your password.
+
+--------------------------
+Copying files to your Pi
+--------------------------
+This can be done remotely with scp (a secure copy that runs on top of SSH) or
+with a USB thumb drive.
+
+ $ scp <source file> pi@<IP/hostname>:/some/remote/directory 
+
+For USB, plug the drive into an available USB port on the Pi. It takes a while,
+but it should automatically mount to /media/pi/<something>.
+
+ $ cp /media/pi/<something> /the/source/path
+ $ sync
+ $ umount /media/pi/<something>
+
+If you copy a bunch of files then sync ensures all the buffers are flushed and
+the copy operation is done, but it isn't strictly necessary. umount un-mounts
+the drive so it is safe to remove. Note that the Pi occasionally restarts when
+inserting a USB drive. This is due to a hardware design issue where inrush
+current causes the rail to drop low enough to reset the Pi. The solution is to
+use a powered hub or not hotplug devices :(.

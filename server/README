@@ -1,0 +1,20 @@
+This directory contains the code to run the local server.
+This server listens for connections from the Lambda function and relays those
+commands to the Vera controller.
+
+The server should be able to run on any machine (Windows/Linux/Mac) but not all
+configurations are tested. Some of the non-core functionality is platform
+specific (e.g. running as a service under Linux).
+
+Tested configurations
+-----------------------
+TODO
+
+TODO
+ - files and descriptions
+ - config file for constants
+ - make messaging more robust
+   - fix msg protocol
+   - multi-threaded server design (timeout dead connections)
+   - more error checking
+ - install server as service
