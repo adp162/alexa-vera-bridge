@@ -17,8 +17,8 @@ http://docs.aws.amazon.com/lambda/latest/dg/setup.html
 
 Basic steps:
  - pip install awscli
- - setup IAM user
- - configure awscli with userID/secret
+ - setup IAM user with permissions for all Lambda functions
+ - configure awscli with userID/secret (run 'aws configure')
 
 Security Assets
 -----------------
