@@ -1,5 +1,32 @@
+<center>
 # Talking to Your House
-#### Integrating Amazon Echo with the Vera home automation controller
+#### Integrating Amazon Echo with the Vera Home Automation Controller
+</center>
+
+## Table of Contents
+1. [Introduction](https://github.com/adp162/alexa-vera-bridge#introduction)
+2. [Overview](https://github.com/adp162/alexa-vera-bridge#overview)
+3. [Quick Start](https://github.com/adp162/alexa-vera-bridge#quick-start)
+4. [Background](https://github.com/adp162/alexa-vera-bridge#background)
+   1. [Alexa Skills Kit](https://github.com/adp162/alexa-vera-bridge#alexa-skills-kit-ask)
+   2. [AWS Lambda](https://github.com/adp162/alexa-vera-bridge#amazon-web-services-aws-lambda)
+   3. [Python](https://github.com/adp162/alexa-vera-bridge#python)
+   4. [Client/Server Communications](https://github.com/adp162/alexa-vera-bridge#clientserver-communications)
+   5. [Raspbian](https://github.com/adp162/alexa-vera-bridge#raspbian)
+   6. [Universal Plug and Play](https://github.com/adp162/alexa-vera-bridge#universal-plug-and-play-upnp)
+5. [Teaching Alexa a New Trick](https://github.com/adp162/alexa-vera-bridge#teaching-alexa-a-new-trick)
+   1. [Signing up for Accounts](https://github.com/adp162/alexa-vera-bridge#signing-up-for-accounts)
+   2. [Create a new Lambda Function](https://github.com/adp162/alexa-vera-bridge#create-a-new-lambda-function)
+   3. [Register a New Alexa Skill](https://github.com/adp162/alexa-vera-bridge#register-a-new-alexa-skill)
+   4. [Customizing our New Skill](https://github.com/adp162/alexa-vera-bridge#customizing-our-new-skill)
+   5. [Setting up the Client](https://github.com/adp162/alexa-vera-bridge#setting-up-the-client)
+   6. [Testing the Skill](https://github.com/adp162/alexa-vera-bridge#testing-the-skill)
+6. [Hearing Alexa at Home](https://github.com/adp162/alexa-vera-bridge#hearing-alexa-at-home)
+   1. [Security Considerations](https://github.com/adp162/alexa-vera-bridge#security-considerations)
+   2. [A Few Other Considerations](https://github.com/adp162/alexa-vera-bridge#a-few-other-considerations)
+   3. [Setting up the Server](https://github.com/adp162/alexa-vera-bridge#setting-up-the-server)
+7. [Talking to Vera](https://github.com/adp162/alexa-vera-bridge#talking-to-vera)
+8. [Related Work](https://github.com/adp162/alexa-vera-bridge#related-work)
 
 ## Introduction
 Speech as an interface to the recently introduced cadre of digital “smart” things has been sorely lacking.  With the release of Echo, Amazon realized they struck a chord with consumers who had been waiting for a more natural way to engage with their devices.  Echo brought two key technologies to bear to allow this to happen – far-field speech recognition and natural language processing.  Echo is the hardware responsible for the signal processing required to extract clean speech out of a noisy environment while Alexa is the cloud service that converts this speech into text and extracts the user's intent from that text.
@@ -7,8 +34,10 @@ Speech as an interface to the recently introduced cadre of digital “smart” t
 The beauty of Echo/Alexa is that the interaction model isn’t limited to certain applications.  Echo/Alexa is a platform on which any applications can be built.  The rest of this primer focuses on building an application to interact with devices used in home automation.  In particular, we focus on using the Alexa Skills Kit (ASK) to interface with the Vera smart home hub.  The primer is divided into several sections.  The Overview section introduces the high level architecture.  The Quick Start section gives setup instructions if you basically understand what you're doing.  The Background section introduces all the concepts covered at a high level.  It is useful to at least browse this section to make sure you understand the various pieces being put together.  Subsequent sections go into greater detail on each component.
 
 ## Overview
+<center>
 ![architecture](https://cloud.githubusercontent.com/assets/16480218/12191735/00d317ae-b58d-11e5-8d52-45060c3e3232.png)
 ###### Figure 1 - System Architecture
+</center>
 
 At a high level, our goal is to have our Echo control our Vera home automation hub.  To do so, we rely on some Amazon services and a Raspberry Pi computer.  The Raspberry Pi can easily be substituted for a PC as all it is doing is running a simple server written in Python.  Figure 1 is divided in a local network (i.e. everything behind our router) where all our devices are located and the Internet, where the Amazon services are located.  The solid black lines indicate physical connections (e.g. wired or wireless Ethernet) while the orange pipes indicate logical connections between devices (i.e. sockets).
 
@@ -23,8 +52,10 @@ This section gives a brief description of the topics covered in this example.  A
 #### Alexa Skills Kit (ASK)
 ASK is a platform provided by Amazon for building voice-driven skills.  A skill is developed by specifying a set of criteria by which to interpret spoken utterances.  You can think of writing new skills as analogous to writing a program, only the structure is more limited with Alexa skills.  Skills are specified by their Intent Schema.  Intents describe actions we want to take based on spoken commands.  The interaction flow with a custom Alexa skill is shown in Figure 2.
 
-![alexa_skills_flow](https://cloud.githubusercontent.com/assets/16480218/12191764/3fb9b00e-b58d-11e5-8604-5d23f4a6b095.png)
+<center>
+![alexa_skills_flow](https://cloud.githubusercontent.com/assets/16480218/12194104/24b0ea38-b5a2-11e5-8656-7f653ff694f4.png)
 ###### Figure 2 - Alexa Skills Kit Flow
+</center>
 
 ##### References
 * [ASK Homepage](https://developer.amazon.com/appsandservices/solutions/alexa/alexa-skills-kit)
@@ -138,8 +169,10 @@ With the Raspberry Pi configured with internet access we will now walk through s
 ### Security Considerations
 At this point, it is important to pause and consider the security implications of what we’re doing.  Opening up communications between computers exposes us to the risk that someone with malicious intent can connect to our devices and cause harm (i.e. steal data, spy on us, etc.).  To mitigate this risk, we secure our connection as shown in Figure 3.  The client (Lambda function) is represented by the character Alice while the server (Raspberry Pi) is represented by Bob.  The attacker, who we assume is able to monitor our communications, is Eve.  Mallory (not pictured) is a slightly more nefarious attacker who we assume can insert herself in the middle of our conversation and alter, inject, or replay messages.  Finally, Trent is a trusted 3rd party who can vet Alice’s and Bob’s identities.  Our goal is to send a message from Alice to Bob and ideally preserve privacy, authenticity, and integrity.
 
-![security](https://cloud.githubusercontent.com/assets/16480218/12191753/2fd58c30-b58d-11e5-8694-642c0b217c88.png)
+<center>
+![security](https://cloud.githubusercontent.com/assets/16480218/12194171/b8a0a31e-b5a2-11e5-9552-16347cc56689.png)
 ###### Figure 3 - Security Configuration
+</center>
 
 Ideally, we'd like the server to know the client is who he says he is and vice versa.  We can address these problems using a protocol called SSL/TLS.  SSL/TLS specifies a mechanism to exchange a secret key, allows parties to authenticate each other using certificates, and specifies a message integrity check to ensure the message wasn't tampered with in transit.  The secret key exchange is based on the principles of public-key cryptography, while certificates provide proof of an entity's ownership of a public key.  Certificates rely on a trusted 3rd party vetting the owner of a key.  How this vetting works in the real world is pretty interesting.  Trusted 3rd parties are known as certificate authorities (CA) and are companies that, for a fee, sign digital certificates for other entities.  What makes CAs special is that their certificates (from which our root of trust originates) are embedded in software that everyone uses (e.g. Web browsers).  The system isn’t perfect though and sometimes CAs get compromised and we need to remove the now untrusted root-of-trust from our browsers.  Other times companies will install their own root certificates on equipment they sell.  Open your browser and take a look at the root certificates you have.  You will be amazed at how many 3rd parties you trust to keep you protected on the Internet!
 
@@ -150,12 +183,14 @@ The source code has more details of the implementation, but in a nutshell we use
 ### A Few Other Considerations
 Another point worth mentioning is how the Lambda function running in the cloud finds our Raspberry Pi to talk to.  Since the Raspberry Pi is on the local network (see Figure 1), it only has a local IP address (192.168.0.100).  The only IP address visible to the Lambda function is the one that our ISP assigns to our router (54.240.196.170 in this example).  What we have to do is to setup port forwarding (also called Network Address Translation, or NAT) on our router so that traffic to our Internet IP is routed to the Raspberry Pi.  Configuring this is router dependent, but it is typically rule based (and sometimes integrated with firewall rules).  For the example illustrated in Figure 1 the rules might look like those in Table 1.  Note, rules are typically followed in order until one matches, which is why we have a “catch-all” rule last.  The first rule says to allow traffic on port 3000 from any Internet address and forward it to our Raspberry Pi.  The second rule denies all other incoming traffic.
 
+<center>
 Service | Action | LAN | WAN
---------|--------|-----|----
+:------:|:------:|:---:|:--:
 TCP:3000 | Allow | 192.168.0.100 | Any
 \*:\* | Deny | Any | Any
 
 ###### Table 1 – NAT Rules (for incoming requests)
+</center>
 
 Finally, note that in the config file for the Lambda function you can specify a hostname or IP address for the server.  Most people will just have an IP address assigned by their ISP.  The problem is that this is typically dynamic meaning it can change from time to time and break the Lambda function.  The way to solve this problem is with DNS, a service that translates hostnames (that stay consistent) to IP addresses.  There are many free and paid ways to do DNS, which is outside the scope of this guide.
 
@@ -205,3 +240,7 @@ curl http://192.168.0.50:3480/data_request?id=lu_action&DeviceType=urn:schemas-u
 ```
 
 Devices can also be referred to by number (DeviceNum), which is a much shorter version than the DeviceType string.  The ‘lu_action’ is the primary way our server interfaces with Vera.  As you add functionality, you’ll need to customize the server to translate between messages we receive from Lambda and UPnP commands.  This example currently supports getting/setting simple on/off devices and running scenes.
+
+## Related Work
+TODO
+Lindos, alexa wemo hack, vera status reporter
