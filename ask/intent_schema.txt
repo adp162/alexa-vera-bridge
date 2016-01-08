@@ -1,0 +1,38 @@
+{
+  "intents": [
+    {
+      "intent": "DeviceSetIntent",
+      "slots": [
+        {
+          "name": "Device",
+          "type": "AMAZON.NUMBER"
+        },
+        {
+          "name": "Action",
+          "type": "LIST_OF_ACTIONS"
+        }
+      ]
+    },
+    {
+      "intent": "DeviceGetIntent",
+      "slots": [
+        {
+          "name": "Device",
+          "type": "AMAZON.NUMBER"
+        }
+      ]
+    },
+    {
+      "intent": "RunSceneIntent",
+      "slots": [
+        {
+          "name": "Scene",
+          "type": "AMAZON.NUMBER"
+        }
+      ]
+    },
+    {
+      "intent": "AMAZON.HelpIntent"
+    }
+  ]
+}

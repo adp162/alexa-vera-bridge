@@ -1,0 +1,16 @@
+DeviceSetIntent to set device {Device} to {Action}
+DeviceSetIntent to turn {Action} device {Device} 
+DeviceSetIntent set device {Device} to {Action}
+DeviceSetIntent to turn device {Device} {Action}
+DeviceSetIntent turn device {Device} {Action}
+DeviceGetIntent the status of device {Device}
+DeviceGetIntent to get the status of device {Device}
+DeviceGetIntent to get the status of {Device}
+DeviceGetIntent what is the status of device {Device}
+DeviceGetIntent what's the status of device {Device}
+DeviceGetIntent device {Device} status
+DeviceGetIntent the status of {Device}
+DeviceGetIntent the status of device {Device}
+RunSceneIntent run scene {Scene}
+RunSceneIntent to run scene {Scene}
+RunSceneIntent to execute scene {Scene}
