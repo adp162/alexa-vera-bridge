@@ -1,5 +1,9 @@
 # Ignore user-created certificates and keys
-security/user/*
+security/user/*.bin
+security/user/*.key
+security/user/*.crt
+security/user/*.pem
+security/user/*.srl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
