@@ -10,8 +10,9 @@ import ConfigParser
 
 """
 TODOs
+ - What are session_attributes?
+ - various flows a skill gets invoked with
  - get_logs.sh - pulls cloudwatch log for debugging
- - unit_tests.py - sends several test requests to lambda function (or test locally)
  - msg/ directory for messaging protocol interface
   - new msg (can req particular version) (fills in default header fields (version, etc)
   - send (concat header with body and sendall) waits for reply if expect
@@ -34,24 +35,27 @@ def lambda_handler(event, context):
 
     # Uncomment this if statement and populate with your skill's application ID to
     # prevent someone else from configuring a skill that sends requests to this function.
-    if (event['session']['application']['applicationId'] !=  'amzn1.echo-sdk-ams.app.30b2da0d-fa39-4590-bd59-c9104c84832c'):
+    myAppId = 'amzn1.echo-sdk-ams.app.30b2da0d-fa39-4590-bd59-c9104c84832c'
+    if (event['session']['application']['applicationId'] != myAppID):
         raise ValueError('Invalid Application ID')
 
     req = event['request']
     ses = event['session']
     
-    # On a new session, open the connection to Vera
+    # Log the start of a new session. Note that the Lambda code might get called several
+    # times if the user has multiple utterance interactions with your skill.
     if event['session']['new']:
-        print('on_session_started rId=' + req['requestId'] + ', sId=' + ses['sessionId'])
+        print('New Sesssion: rId=' + req['requestId'] + ', sId=' + ses['sessionId'])
 
+    # The request type lets us know what the user wants to do.
     if req['type'] == 'LaunchRequest':
-        print('on_launch rId=' + req['requestId'] + ', sId=' + ses['sessionId'])
+        print('Launch: rId=' + req['requestId'] + ', sId=' + ses['sessionId'])
         return on_launch(req, ses)
     elif req['type'] == 'IntentRequest':
-        print('on_intent rId=' + req['requestId'] + ', sId=' + ses['sessionId'])
+        print('Intent: rId=' + req['requestId'] + ', sId=' + ses['sessionId'])
         return on_intent(req, ses)
     elif req['type'] == 'SessionEndedRequest':
-        print('on_session_ended rId=' + req['requestId'] + ', sId=' + ses['sessionId'])
+        print('Session Ended rId=' + req['requestId'] + ', sId=' + ses['sessionId'])
         return on_session_ended(req, ses)
 
 """
