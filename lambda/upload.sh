@@ -16,8 +16,8 @@ PSK="$SEC_PATH/psk.bin"
 SECURITY_FILES="$ROOT_CA $CLIENT_CERT $CLIENT_KEY"
 
 # Python files
-PYTHON_FILES=`ls *.py`
-#CONFIG="./client.cfg"
+PYTHON_FILES="./client.py"
+CONFIG="./client.cfg"
 
 # Make sure the files exist
 FILE_LIST="$SECURITY_FILES $PYTHON_FILES $CONFIG"
