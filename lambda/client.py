@@ -6,20 +6,35 @@ using the Alexa Skills Kit.
 from __future__ import print_function
 import socket, ssl
 import json
+import ConfigParser
 
+"""
+TODOs
+ - get_logs.sh - pulls cloudwatch log for debugging
+ - unit_tests.py - sends several test requests to lambda function (or test locally)
+ - msg/ directory for messaging protocol interface
+  - new msg (can req particular version) (fills in default header fields (version, etc)
+  - send (concat header with body and sendall) waits for reply if expect
+  - recv (loop until entire msg received, send reply if needed)
+  - get_data - returns dict with current data
+  - set_data - sets payload to provided dict (error checking according to fields support in versio)
+"""
+
+"""
+The lambda_handler is the entry point of our Lambda function.
+Arguments:
+ - event:   Provides the JSON body of the request
+ - context: TODO ???
+"""
 def lambda_handler(event, context):
 
-    # Route the incoming request based on type (LaunchRequest, IntentRequest,
-    # etc.) The JSON body of the request is provided in the event parameter.
+    # print() functions are logged to CloudWatch logs.
     print('event.session.application.applicationId=' +
           event['session']['application']['applicationId'])
-    """
-    Uncomment this if statement and populate with your skill's application ID to
-    prevent someone else from configuring a skill that sends requests to this
-    function.
-    """
-    if (event['session']['application']['applicationId'] != 
-        'amzn1.echo-sdk-ams.app.30b2da0d-fa39-4590-bd59-c9104c84832c'):
+
+    # Uncomment this if statement and populate with your skill's application ID to
+    # prevent someone else from configuring a skill that sends requests to this function.
+    if (event['session']['application']['applicationId'] !=  'amzn1.echo-sdk-ams.app.30b2da0d-fa39-4590-bd59-c9104c84832c'):
         raise ValueError('Invalid Application ID')
 
     req = event['request']
@@ -28,7 +43,7 @@ def lambda_handler(event, context):
     # On a new session, open the connection to Vera
     if event['session']['new']:
         print('on_session_started rId=' + req['requestId'] + ', sId=' + ses['sessionId'])
-        
+
     if req['type'] == 'LaunchRequest':
         print('on_launch rId=' + req['requestId'] + ', sId=' + ses['sessionId'])
         return on_launch(req, ses)
@@ -43,7 +58,6 @@ def lambda_handler(event, context):
 Called when the user launches the skill without specifying what they want
 """
 def on_launch(launch_request, session):
-    # Play the welcome response
     return get_welcome_response()
 
 """
@@ -52,12 +66,16 @@ Called when the user specifies an intent for this skill
 def on_intent(intent_request, session):
     intent = intent_request['intent']
     intent_name = intent_request['intent']['name']
-    
-    # open a socket to our server
-    socket, err_msg = open_connection_to_vera()
+
+    # For the built-in help intent we don't need to connect to Vera
+    if intent_name == 'AMAZON.HelpIntent':
+        return get_welcome_response()
+
+    # Try connecting to the Vera server
+    (socket, msg) = open_connection_to_vera()
     if socket == None:
-        return get_error_response(err_msg)
-    
+        return get_error_response(msg)
+
     # Dispatch to your skill's intent handlers
     if intent_name == "DeviceGetIntent":
         r = get_device(socket, intent, session)
@@ -65,57 +83,107 @@ def on_intent(intent_request, session):
         r = set_device(socket, intent, session)
     elif intent_name == "RunSceneIntent":
         r = run_scene(socket, intent, session)
-    elif intent_name == "AMAZON.HelpIntent":
-        r = get_welcome_response()
     else:
+        close_connection_to_vera(socket)
         raise ValueError("Invalid intent")
-        
+
     close_connection_to_vera(socket)
     return r
 
 """
 Called when the user ends the session.
-Is not called when the skill returns should_end_session=true
+This is not called when the skill returns 'should_end_session = true'
 """
 def on_session_ended(session_ended_request, session):
-    return
     # Don't need to do anything here
-    
-# --------------- Functions that connect to the listening server ------------------
+    return
 
+# --------------- Functions that connect to the listening server ------------------
+"""
+This function reads the configuration file to determine the server to connect to
+and the root CA, certificate, and key to use. The name of the config file,
+client.cfg, is the only hardcoded part of the client code. The rest of the parameters
+are configurable through the config file.
+
+Returns:
+    Tuple containing socket to use (or None if error) and the error message
+    (or None on success)
+"""
 def open_connection_to_vera():
-    # Define the port/hostname for the server that we will connect to
-    PORT = 3000
-    HOST = 'hostname.dynamic-dns.net' #FIXME
-    
-    # Define paths to our security assets
-    CA_PATH = './rootCA.pem'
-    CLIENT_CERT_PATH = './client.crt'
-    CLIENT_KEY_PATH = './client.key'
-    
-    print ('Configuring security parameters.')
-    
-    # Create the SSL context to authenticate server
-    context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-    context.load_verify_locations(CA_PATH)
-    context.load_cert_chain(certfile=CLIENT_CERT_PATH, keyfile=CLIENT_KEY_PATH)
-    context.verify_mode = ssl.CERT_REQUIRED
-    
-    # Create the socket and wrap it in our context to secure
-    # By specifying server_hostname we require the server's certificate to match the
-    # hostname we provide
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    secure_s = context.wrap_socket(s, server_hostname=HOST)
-    print ('connect to ' + HOST + ':' + str(PORT))
-    
+    # Read the configuration file
+    cfg = ConfigParser.RawConfigParser()
     try:
-        secure_s.connect((HOST, PORT))
-    except socket.error as msg:
-        print ('socket error: ' + msg[1])
-        return (None, msg[1])
+        cfg.readfp( open('client.cfg') )
+    except:
+        return (None, 'error reading configuration file')
+
+    # Make sure we have the server details
+    if cfg.has_section('server'):
+        if cfg.has_option('server', 'port'):
+            port = cfg.getint('server', 'port')
+        else:
+            return (None, 'missing port option in configuration file')
+        if cfg.has_option('server', 'host'):
+            hostname = cfg.get('server', 'host')
+        else:
+            return (None, 'missing hostname in configuration file')
+    else:
+        return (None, 'missing server section in configuration file')
+
+    # See what security options are specified in the config file
+    # Valid combinations are:
+    #   1) none - just do regulat connection (INSECURE)
+    #   1) root_ca only - we just do server validation
+    #   2) TODO - others?
+    security = 'none'
+    if cfg.has_section('security'):
+        security = 'ssl'
+        if cfg.has_option('security', 'root_ca'):
+            root_ca = cfg.get('security', 'root_ca')
+        if cfg.has_option('security', 'client_cert'):
+            cert = cfg.get('security', 'client_cert')
+        if cfg.has_option('security', 'client_key'):
+            key = cfg.get('security', 'client_key')
+
+    print ('configuring client security profile as "' + security + '"')
+    # Try a regular connection (INSECURE)
+    if security == 'none':
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print ('connect to ' + host + ':' + str(port) + ' (INSECURE)')
     
-    # return the socket object so other functions can use it
-    return (secure_s, None)
+        try:
+            s.connect((host, port))
+        except socket.error as msg:
+            print ('socket error (' + str(msg[0]) + '): ' + msg[1])
+            return (None, msg[1])
+
+        # On successful connect return the socket
+        return (s, None)
+    elif security == 'ssl':
+        # Create the SSL context to authenticate server
+        context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        context.load_verify_locations(root_ca)
+        context.load_cert_chain(certfile=cert, keyfile=key)
+        context.verify_mode = ssl.CERT_REQUIRED
+    
+        # Create the socket and wrap it in our context to secure
+        # By specifying server_hostname we require the server's certificate to match the
+        # hostname we provide
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        secure_s = context.wrap_socket(s, server_hostname=host)
+        print ('connect to ' + host + ':' + str(port) + ' (SSL)')
+
+        try:
+            secure_s.connect((host, port))
+        except socket.error as msg:
+            print ('socket error (' + str(msg[0]) + '): ' + msg[1])
+            return (None, msg[1])
+
+        # On successful connection return the secure socket
+        return (secure_s, None)
+    else:
+        # We don't have a valid security context
+        return (None, 'invalid security context')
 
 def close_connection_to_vera(s):
     # Close the socket
