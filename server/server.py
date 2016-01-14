@@ -3,6 +3,8 @@ import socket, ssl
 import json
 import sys
 import requests
+import ConfigParser
+import argparse
 
 """
 JSON message format example (Client->Server):
@@ -73,6 +75,7 @@ def handle_msg(s, msg):
     
     # Send the appropriate HTTP request to Vera
     dest = 'http://' + VERA_IP + ':3480/data_request'
+    """
     r = requests.get(dest, params=vera_params)
     if r.status_code != 200:
         print 'Error contacting Vera!'
@@ -93,7 +96,8 @@ def handle_msg(s, msg):
                     if state['variable'] == 'ConfiguredName':
                         veraname = state['value']
         resp_data = {'status':verastate, 'name':veraname}
-    
+    """
+    resp_data = None
     # Send the response
     resp = {'status': 0, 'err_str': None, 'data': resp_data}
     print 'sending: ' + json.dumps(resp)
@@ -102,39 +106,99 @@ def handle_msg(s, msg):
     return data['close_connection']
         
 def main():
-    # Define the port that we will listen on
-    PORT = 3000
+    # Read the configuration file
+    cfg = ConfigParser.RawConfigParser()
     
-    # Define paths to our security assets
-    CA_PATH = './base_rootCA.pem'
-    SERVER_CERT_PATH = './.crt' # FIXME
-    SERVER_KEY_PATH = './.key' # FIXME
+    # If the user provides a file use that, otherwise use the default
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', help='path to server config file')
+    args = parser.parse_args()
+    cfg_file = './server.cfg'
+    if args.config is not None:
+        cfg_file = args.config
+    try:
+        cfg.readfp( open(cfg_file) )
+    except:
+        print 'error reading configuration file: ' + cfg_file
+        sys.exit()
+
+    # Setup the defaults
+    port = 3000
+    vera_port = 3480
+
+    # Make sure we have the required sections in the config file
+    if cfg.has_section('vera'):
+        if cfg.has_option('vera', 'ip'):
+            vera_ip = cfg.get('vera', 'ip')
+        else:
+            print 'missing Vera IP address'
+            sys.exit()
+
+        if cfg.has_option('vera', 'port'):
+            vera_port = cfg.getint('vera', 'port')
+    else:
+        print 'missing [vera] section in configuration file'
+        sys.exit()
+
+    if cfg.has_option('server', 'port'):
+        port = cfg.getint('server', 'port')
+
+    # See what security options are specified in the config file
+    # Valid combinations are:
+    #   1) none - just do regular connection (INSECURE)
+    #   2) just the section - use ssl/tls but with no auth
+    #   3) root_ca only - ssl/tls with client validation
+    #   4) root_ca plus client cert/key- give out certificate to client
+    security = 'none'
+    if cfg.has_section('security'):
+        security = 'ssl'
+        if cfg.has_option('security', 'root_ca'):
+            security = 'ssl_client_auth'
+            root_ca = cfg.get('security', 'root_ca')
+            if cfg.has_option('security', 'cert') and cfg.has_option('security', 'key'):
+                security='ssl_mutual_auth'
+                cert = cfg.get('security', 'cert')
+                key = cfg.get('security', 'key')
+
+    print ('configuring server security profile as "' + security + '"')
     
-    print 'Configuring security parameters.'
-    
-    # Create the SSL context to authenticate client
-    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    context.load_verify_locations(CA_PATH)
-    context.load_cert_chain(certfile=SERVER_CERT_PATH, keyfile=SERVER_KEY_PATH)
-    context.verify_mode = ssl.CERT_REQUIRED
-    
-    # Create the socket (For SSL we must use SOCK_STREAM)
+    # Open up the port and listen for connections
+    # Create the socket
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
     # Bind the socket to the port
-    print 'starting lambda_listener on ' + socket.gethostname() + ':' + str(PORT)
+    print 'starting server on ' + socket.gethostname() + ':' + str(port)
     print
     # Do some error checking as binds can fail if the port is being used by
     # someone else
     try:
-        s.bind(('', PORT))
+        s.bind(('', port))
     except socket.error as msg:
         print 'socket bind() failed!'
         print '(err ' + str(msg[0]) + '): ' + msg[1]
         sys.exit()
-        
+
     # start listening (with max 3 connections queued)
     s.listen(3)
+
+    # Setup the SSL context based on assets provided in the config file
+    if security == 'none':
+        # No need to create an SSL context
+        pass
+    elif security == 'ssl':
+        # Create defautl SSL context with no authentication
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+    elif security == 'ssl_client_auth':
+        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context.load_verify_locations(root_ca)
+        context.verify_mode = ssl.CERT_REQUIRED
+    elif security == 'ssl_mutual_auth':
+        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context.load_verify_locations(root_ca)
+        context.verify_mode = ssl.CERT_REQUIRED
+        context.load_cert_chain(certfile=cert, keyfile=key)
 
     # Now that the server is listening, we can enter our main loop where we
     # wait for connections
@@ -143,16 +207,19 @@ def main():
         (new_s, addr) = s.accept()
         print 'connection from ' + addr[0] + ':' + str(addr[1])
         
-        # Wrap the socket in our SSL context to protect communications 
-        secure_s = context.wrap_socket(new_s, server_side=True)
-        
+        # Wrap the socket in our SSL context to protect communications
+        if security == 'none':
+            secure_s = new_s
+        else:
+            secure_s = context.wrap_socket(new_s, server_side=True)
+
         # The message protocol is pretty simple. It is a 4 byte header and payload.
         # The header is simply the payload length.
         client_done = False
         
         while client_done == False:
             # Wait for a new message
-            msg = secure_s.read()
+            msg = secure_s.recv(1024)
         
             # Parse the message
             client_done = handle_msg(secure_s, msg)
