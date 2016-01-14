@@ -4,6 +4,15 @@ multiple files we can't simply use the inline editor in the Lambda web
 interface. Instead, we package all our files as a single zip file and upload
 this to Lambda.
 
+-------------------
+File Descriptions
+-------------------
+client.cfg - Configuration file for Lambda client
+client.py - Lambda client implementation
+run_unit_tests.sh - Shell script to runs a series of tests against the client
+upload.sh - Shell script to create (and optionally upload) Lambda bundle
+test/ - Directory containing tests to run
+
 -------------------------
 Installing Dependencies
 -------------------------

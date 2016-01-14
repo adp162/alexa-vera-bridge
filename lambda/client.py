@@ -9,12 +9,25 @@ import json
 import ConfigParser
 
 """
+TESTING
+ - config parser changes
+ - talking to server with various security settings
+ - running unit tests
+
 TODOs
  - What are session_attributes?
  - various flows a skill gets invoked with
  - get_logs.sh - pulls cloudwatch log for debugging
+ - do i import everything with __future__?
+ 
+ - add support for symmetric key attribute in config
+ 
  - msg/ directory for messaging protocol interface
   - new msg (can req particular version) (fills in default header fields (version, etc)
+  - in constructor optionally specify (version, key)
+  - if key is used then msg depends on pycrypto for encrypt/decrypt
+  - header: <msg length 4 bytes, version 2 bytes, enc 2 bytes, iv 16 bytes?>
+  - body: json object (potentially encrypted)
   - send (concat header with body and sendall) waits for reply if expect
   - recv (loop until entire msg received, send reply if needed)
   - get_data - returns dict with current data
@@ -22,14 +35,27 @@ TODOs
 """
 
 """
-The lambda_handler is the entry point of our Lambda function.
+The lambda_handler is the entry point of our Lambda function. ASK always invokes
+this handler as the RequestResponse type and so the data returned by the handler
+function is included in the HTTP response returned to ASK.
+
 Arguments:
  - event:   Provides the JSON body of the request
- - context: TODO ???
-"""
+ - context: Provides runtime information to the Lambda function
+ """
 def lambda_handler(event, context):
-
-    # print() functions are logged to CloudWatch logs.
+    
+    # Print out some information specific to our Lambda configuration
+    # NOTE: print() functions are logged to CloudWatch logs.
+    # NOTE: sometimes context can be None for a test that locally invokes this function
+    if context is not None:
+        print('Log stream name: ', context.log_stream_name)
+        print('Log group name: ', context.log_group_name)
+        print('Request ID: ', context.aws_request_id)
+        print('Mem. limits(MB): ', context.memory_limit_in_mb)
+        print('Time remaining (ms): ', context.get_remaining_time_in_millis())
+    
+    # Log the applicationID for the ASK skill that invoked us
     print('event.session.application.applicationId=' +
           event['session']['application']['applicationId'])
 
@@ -81,15 +107,15 @@ def on_intent(intent_request, session):
         return get_error_response(msg)
 
     # Dispatch to your skill's intent handlers
-    if intent_name == "DeviceGetIntent":
+    if intent_name == 'DeviceGetIntent':
         r = get_device(socket, intent, session)
-    elif intent_name == "DeviceSetIntent":
+    elif intent_name == 'DeviceSetIntent':
         r = set_device(socket, intent, session)
-    elif intent_name == "RunSceneIntent":
+    elif intent_name == 'RunSceneIntent':
         r = run_scene(socket, intent, session)
     else:
         close_connection_to_vera(socket)
-        raise ValueError("Invalid intent")
+        raise ValueError('Invalid intent')
 
     close_connection_to_vera(socket)
     return r
@@ -137,48 +163,56 @@ def open_connection_to_vera():
     # See what security options are specified in the config file
     # Valid combinations are:
     #   1) none - just do regulat connection (INSECURE)
-    #   1) root_ca only - we just do server validation
-    #   2) TODO - others?
+    #   2) just the section - use ssl/tls but with no auth
+    #   3) root_ca only - ssl/tls with server validation
+    #   4) root_ca plus client cert/key- give out certificate to server
     security = 'none'
     if cfg.has_section('security'):
         security = 'ssl'
         if cfg.has_option('security', 'root_ca'):
+            security = 'ssl_server_auth'
             root_ca = cfg.get('security', 'root_ca')
-        if cfg.has_option('security', 'client_cert'):
-            cert = cfg.get('security', 'client_cert')
-        if cfg.has_option('security', 'client_key'):
-            key = cfg.get('security', 'client_key')
+            if cfg.has_option('security', 'cert') and cfg.has_option('security', 'key'):
+                security='ssl_mutual_auth'
+                cert = cfg.get('security', 'cert')
+                key = cfg.get('security', 'key')
 
     print ('configuring client security profile as "' + security + '"')
     # Try a regular connection (INSECURE)
     if security == 'none':
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print ('connect to ' + host + ':' + str(port) + ' (INSECURE)')
+        print ('connect to ' + hostname + ':' + str(port) + ' (INSECURE)')
     
         try:
-            s.connect((host, port))
+            s.connect((hostname, port))
         except socket.error as msg:
             print ('socket error (' + str(msg[0]) + '): ' + msg[1])
             return (None, msg[1])
 
         # On successful connect return the socket
         return (s, None)
-    elif security == 'ssl':
-        # Create the SSL context to authenticate server
-        context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-        context.load_verify_locations(root_ca)
-        context.load_cert_chain(certfile=cert, keyfile=key)
-        context.verify_mode = ssl.CERT_REQUIRED
+    elif security == 'ssl' or security == 'ssl_server_auth' or security == 'ssl_mutual_auth':
+        # Create the SSL context depending on the credentials given in the config file
+        if (security == 'ssl'):
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+        else:
+            context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+            context.load_verify_locations(root_ca)
+            context.verify_mode = ssl.CERT_REQUIRED
+            if security == 'ssl_mutual_auth':
+                context.load_cert_chain(certfile=cert, keyfile=key)
     
         # Create the socket and wrap it in our context to secure
         # By specifying server_hostname we require the server's certificate to match the
         # hostname we provide
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        secure_s = context.wrap_socket(s, server_hostname=host)
-        print ('connect to ' + host + ':' + str(port) + ' (SSL)')
+        secure_s = context.wrap_socket(s, server_hostname=hostname)
+        print ('connect to ' + hostname + ':' + str(port) + ' (SSL/TLS)')
 
         try:
-            secure_s.connect((host, port))
+            secure_s.connect((hostname, port))
         except socket.error as msg:
             print ('socket error (' + str(msg[0]) + '): ' + msg[1])
             return (None, msg[1])
@@ -201,7 +235,7 @@ def send_vera_message(s, data):
     s.sendall(msg)
 
     # Wait for a response
-    resp = s.read()
+    resp = s.recv(1024)
     print ('resp: ' + resp)
         
     # Decode the received message
