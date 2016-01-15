@@ -10,7 +10,6 @@ import ConfigParser
 
 """
 TESTING
- - config parser changes
  - talking to server with various security settings
  - running unit tests
 
@@ -61,9 +60,9 @@ def lambda_handler(event, context):
 
     # Uncomment this if statement and populate with your skill's application ID to
     # prevent someone else from configuring a skill that sends requests to this function.
-    myAppId = 'amzn1.echo-sdk-ams.app.30b2da0d-fa39-4590-bd59-c9104c84832c'
-    if (event['session']['application']['applicationId'] != myAppID):
-        raise ValueError('Invalid Application ID')
+    myAppId = ''
+    #if (event['session']['application']['applicationId'] != myAppID):
+    #    raise ValueError('Invalid Application ID')
 
     req = event['request']
     ses = event['session']
