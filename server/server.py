@@ -75,7 +75,7 @@ def handle_msg(s, vera_ip, vera_port, msg):
     # Send the appropriate HTTP request to Vera
     dest = 'http://' + vera_ip + ':' + vera_port + '/data_request'
     print 'sending to: ' + dest
-    """
+    
     r = requests.get(dest, params=vera_params)
     if r.status_code != 200:
         print 'Error contacting Vera!'
@@ -96,7 +96,7 @@ def handle_msg(s, vera_ip, vera_port, msg):
                     if state['variable'] == 'ConfiguredName':
                         veraname = state['value']
         resp_data = {'status':verastate, 'name':veraname}
-    """
+    
     resp_data = None
     # Send the response
     resp = {'status': 0, 'err_str': None, 'data': resp_data}
