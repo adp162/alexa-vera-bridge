@@ -22,7 +22,6 @@ test_client.py - Locally invokes client (lambda/client.py) to test server
 install.sh - Shell script that installs the server as a service
 
 TODO
- - config file for constants
  - make messaging more robust
    - fix msg protocol
    - multi-threaded server design (timeout dead connections)

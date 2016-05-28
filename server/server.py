@@ -34,8 +34,7 @@ JSON message format example (Server->Client):
 }
 """
 
-def handle_msg(s, msg):
-    VERA_IP = '0.0.0.0' # FIXME
+def handle_msg(s, vera_ip, vera_port, msg):
     
     print 'got msg: ' + msg
     # Parse the received message.
@@ -74,7 +73,8 @@ def handle_msg(s, msg):
         return True
     
     # Send the appropriate HTTP request to Vera
-    dest = 'http://' + VERA_IP + ':3480/data_request'
+    dest = 'http://' + vera_ip + ':' + vera_port + '/data_request'
+    print 'sending to: ' + dest
     """
     r = requests.get(dest, params=vera_params)
     if r.status_code != 200:
@@ -213,16 +213,27 @@ def main():
         else:
             secure_s = context.wrap_socket(new_s, server_side=True)
 
-        # The message protocol is pretty simple. It is a 4 byte header and payload.
-        # The header is simply the payload length.
-        client_done = False
+        # Kick off a thread to handle the new client
+        # TODO
         
+        # FIXME - this goes in the client thread
+        # Should have 2 loops - recv header loop followed by recv msg loop
+        # the client will always wait for a response from the server, but
+        # close connection tells the server that the client is done
+        # We should also check for rcv() returning '' as this means the socket died
+        # Have a max length on the message
+        #header: <msg length 4 bytes, version 2 bytes, enc 2 bytes, iv 16 bytes?>
+        #body: json object (potentially encrypted)
+
+        client_done = False
         while client_done == False:
             # Wait for a new message
             msg = secure_s.recv(1024)
         
-            # Parse the message
-            client_done = handle_msg(secure_s, msg)
+            # Handle the message
+            # Pass in IP address and port of vera (as strings). These are used to form
+            # the URL to send the request to Vera.
+            client_done = handle_msg(secure_s, vera_ip, str(vera_port), msg)
         
         # Close the connection
         secure_s.close()

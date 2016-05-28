@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import sys
 import os
+from shutil import copyfile
 
 def main():
     # To run the client code we have to change to that directory since a bunch of
@@ -9,6 +10,12 @@ def main():
     os.chdir('../lambda')
     sys.path.append('./')
 
+    # Temporarily copy sample security assets to lambda directory
+    copyfile('../security/sample/rootCA.pem', './rootCA.pem')
+    copyfile('../security/sample/client.crt', './client.crt')
+    copyfile('../security/sample/client.key', './client.key')
+    copyfile('../security/sample/psk.bin', './psk.bin')
+    
     # Actually use the client code to test sending server message
     import client
 
@@ -25,6 +32,12 @@ def main():
 
     # TODO - add more test cases
 
+    # Remove the security assets copied earlier
+    os.remove('rootCA.pem')
+    os.remove('client.crt')
+    os.remove('client.key')
+    os.remove('psk.bin')
+    
     # Close the connection
     client.close_connection_to_vera(socket)
     sys.exit()
