@@ -1,8 +1,9 @@
 ISSUES
 1) with plain ssl security (no cert checking) we get a no shared cipher error
-2) in client.cfg we assume everything is in the same director (since that's the way we upload to Lambda) but the test cases want to look for security assets elsewhere. How to fix?
 
 THINGS TO DO
 get run_unit_tests script parsing correctly
-test local lambda execution
 test remote using aws invoke
+
+add test cases for test_client.py
+fix some server robustness in the way it handles connections
