@@ -64,7 +64,14 @@ if [ "$UPLOAD" = "yes" ]; then
   aws lambda update-function-code --function-name $LAMBDA_NAME --zip-file fileb://$ZIP_FILE > $OUTPUT 2>&1
 
   # Check that the upload was successful
-  SHA_LOCAL=`openssl sha256 -binary $ZIP_FILE | openssl base64`
+  # There are a couple platform dependent things here so figure out if we're Linux or Mac
+  PLATFORM=`uname`
+  echo "platform: $PLATFORM"
+  if [ "$PLATFORM" = "Darwin" ]; then
+    SHA_LOCAL=`openssl dgst -sha256 -binary $ZIP_FILE | openssl base64`
+  else
+    SHA_LOCAL=`openssl sha256 -binary $ZIP_FILE | openssl base64`
+  fi
   SHA_LAMBDA=`cut -f1 $OUTPUT`
   ARN=`cut -f4 $OUTPUT`
   SIZE=`cut -f2 $OUTPUT`
