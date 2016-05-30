@@ -1,12 +1,19 @@
 #!/bin/sh
 
+############### Customize these options ###############
+# Change this name to match the name of your Lambda function
+LAMBDA_NAME=myTestSkill
+
 # Security assets
 # If you create your own certs/keys as per the directions in ../security/README
 # then point SEC_PATH to ../security/user. This path is in the .gitignore so it
 # won't be tracked by git
-
 #SEC_PATH="../security/user"
 SEC_PATH="../security/sample"
+
+# Configuration file for client behavior
+CONFIG="./client.cfg"
+############### End Custom Options ###############
 
 ROOT_CA="$SEC_PATH/rootCA.pem"
 CLIENT_CERT="$SEC_PATH/client.crt"
@@ -17,7 +24,6 @@ SECURITY_FILES="$ROOT_CA $CLIENT_CERT $CLIENT_KEY"
 
 # Python files
 PYTHON_FILES="./client.py"
-CONFIG="./client.cfg"
 
 # Make sure the files exist
 FILE_LIST="$SECURITY_FILES $PYTHON_FILES $CONFIG"
@@ -57,8 +63,6 @@ command -v aws >/dev/null 2>&1 || {
   UPLOAD="no"
 }
 if [ "$UPLOAD" = "yes" ]; then
-  # Change this name to match the name of your Lambda function
-  LAMBDA_NAME=myTestSkill
   OUTPUT=./tmp/lambda.txt
 
   aws lambda update-function-code --function-name $LAMBDA_NAME --zip-file fileb://$ZIP_FILE > $OUTPUT 2>&1

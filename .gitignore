@@ -1,6 +1,8 @@
 # Ignore user-created certificates and keys
+security/*.srl
 security/user/*.bin
 security/user/*.key
+security/user/*.csr
 security/user/*.crt
 security/user/*.pem
 security/user/*.srl
