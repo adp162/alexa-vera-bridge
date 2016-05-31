@@ -74,12 +74,23 @@ def handle_msg(s, vera_ip, vera_port, msg):
     
     # Send the appropriate HTTP request to Vera
     dest = 'http://' + vera_ip + ':' + vera_port + '/data_request'
+    print
     print 'sending to: ' + dest
-    
-    r = requests.get(dest, params=vera_params)
+    print 'params: ' + str(vera_params)
+    print
+
+    try:
+        r = requests.get(dest, params=vera_params)
+    except requests.exceptions.RequestException as e:
+        print e
+        resp = {'status': 2, 'err_str': 'requests exception', 'data': None}
+        s.sendall(json.dumps(resp))
+        return True
+
     if r.status_code != 200:
-        print 'Error contacting Vera!'
-        resp = {'status': 2, 'err_str': 'error contacting Vera', 'data': None}
+        print 'Non-200 response from Vera'
+        print 'Code: ' + str(r.status_code)
+        resp = {'status': 2, 'err_str': 'bad response from Vera', 'data': None}
         s.sendall(json.dumps(resp))
         return True
                         
@@ -97,7 +108,6 @@ def handle_msg(s, vera_ip, vera_port, msg):
                         veraname = state['value']
         resp_data = {'status':verastate, 'name':veraname}
     
-    resp_data = None
     # Send the response
     resp = {'status': 0, 'err_str': None, 'data': resp_data}
     print 'sending: ' + json.dumps(resp)
