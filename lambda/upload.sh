@@ -1,33 +1,46 @@
 #!/bin/sh
 
+# Parse the command line arguments
+UPLOAD="no"
+SECURITY="sample"
+LAMBDA_NAME="myTestSkill"
+while getopts us:l: opt
+do
+  case "$opt" in
+    u)  UPLOAD="yes";;
+    s)  SECURITY="$OPTARG";;
+    l)  LAMBDA_NAME="$OPTARG";;
+    \?)
+      # unknown flag
+      echo >&2 "usage: $0 [-u] [-l name] [-s location]"
+      echo >&2 "-u: upload to Lambda"
+      echo >&2 "-l: 'name' is your Lambda function name"
+      echo >&2 "-s: 'location' is security asset location (user or sample)"
+      exit 1;;
+  esac
+done
+shift `expr $OPTIND - 1`
+
 # Security assets
 # If you create your own certs/keys as per the directions in ../security/README
 # then point SEC_PATH to ../security/user. This path is in the .gitignore so it
 # won't be tracked by git
-
-#SEC_PATH="../security/user"
-SEC_PATH="../security/sample"
+if [ "$SECURITY" = "user" ]; then
+  SEC_PATH="../security/user"
+else
+  SEC_PATH="../security/sample"
+fi
 
 ROOT_CA="$SEC_PATH/rootCA.pem"
 CLIENT_CERT="$SEC_PATH/client.crt"
 CLIENT_KEY="$SEC_PATH/client.key"
 PSK="$SEC_PATH/psk.bin"
 
-SECURITY_FILES="$ROOT_CA $CLIENT_CERT $CLIENT_KEY"
+SECURITY_FILES="$ROOT_CA $CLIENT_CERT $CLIENT_KEY $PSK"
 
 # Python files
 PYTHON_FILES="./client.py"
 CONFIG="./client.cfg"
-
-# Make sure the files exist
-FILE_LIST="$SECURITY_FILES $PYTHON_FILES $CONFIG"
-for file in $FILE_LIST
-do
-  if [ ! -f $file ]; then
-    echo "missing file $file."
-    exit
-  fi
-done
 
 # Create a temp directory and copy everything there
 if [ -d ./tmp ]; then
@@ -35,7 +48,17 @@ if [ -d ./tmp ]; then
   rm -rf ./tmp
 fi
 mkdir tmp
-cp $FILE_LIST ./tmp/
+
+# Make sure the files exist and copy to tmp directory
+FILE_LIST="$SECURITY_FILES $PYTHON_FILES $CONFIG"
+for file in $FILE_LIST
+do
+  if [ ! -f $file ]; then
+    echo "warning: missing file $file."
+  else
+    cp $file ./tmp/
+  fi
+done
 
 # Zip the files
 ZIP_FILE=lambda_bundle.zip
@@ -51,36 +74,40 @@ mv $ZIP_FILE ../
 cd ..
 
 # Upload the zip to AWS
-UPLOAD="yes"
 command -v aws >/dev/null 2>&1 || { 
   echo "AWS tools not found, skipping upload."
   UPLOAD="no"
 }
 if [ "$UPLOAD" = "yes" ]; then
-  # Change this name to match the name of your Lambda function
-  LAMBDA_NAME=myTestSkill
   OUTPUT=./tmp/lambda.txt
+  TIME=`date`
+  DESC="ASK Lambda Function. Uploaded on $TIME"
 
-  aws lambda update-function-code --function-name $LAMBDA_NAME --zip-file fileb://$ZIP_FILE > $OUTPUT 2>&1
+  # Make the AWS CLI calls to upload function and edit configuration
+  aws lambda update-function-code --function-name "$LAMBDA_NAME" \
+    --zip-file fileb://$ZIP_FILE > $OUTPUT 2>&1
+  aws lambda update-function-configuration --function-name "$LAMBDA_NAME" \
+    --description "$DESC" --handler "client.lambda_handler" > $OUTPUT 2>&1
+  # --timeout <seconds>
+  # --memory-size <MB>
+
+  # If needed can specify timeout/memory options. Defaults are 3 sec/128 MB
+  # Lambda free tier includes 1M requests and 400,000 GB-seconds of compute time per month
 
   # Check that the upload was successful
-  # There are a couple platform dependent things here so figure out if we're Linux or Mac
-  PLATFORM=`uname`
-  echo "platform: $PLATFORM"
-  if [ "$PLATFORM" = "Darwin" ]; then
-    SHA_LOCAL=`openssl dgst -sha256 -binary $ZIP_FILE | openssl base64`
-  else
-    SHA_LOCAL=`openssl sha256 -binary $ZIP_FILE | openssl base64`
-  fi
+  SHA_LOCAL=`openssl dgst -sha256 -binary $ZIP_FILE | openssl base64`
   SHA_LAMBDA=`cut -f1 $OUTPUT`
   ARN=`cut -f4 $OUTPUT`
   SIZE=`cut -f2 $OUTPUT`
   if [ "$SHA_LOCAL" = "$SHA_LAMBDA" ]; then
-    echo "successfully uploaded $SIZE bytes to lambda."
+    echo "uploaded $SIZE bytes to lambda."
+    echo "sha256: $SHA_LOCAL"
     echo "ARN: $ARN"
+    echo "UPLOAD SUCCESS"
   else
     echo "failed to upload to lamdba!"
     cat $OUTPUT
+    echo "UPLOAD FAILED"
   fi
 fi
 
