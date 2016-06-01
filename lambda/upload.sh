@@ -1,21 +1,26 @@
 #!/bin/sh
 
-# Parse the command line arguments
+# Set some default values
 UPLOAD="no"
 SECURITY="sample"
 LAMBDA_NAME="myTestSkill"
-while getopts us:l: opt
+CONFIG="./client.cfg"
+
+# Parse the command line arguments
+while getopts us:l:c: opt
 do
   case "$opt" in
     u)  UPLOAD="yes";;
     s)  SECURITY="$OPTARG";;
     l)  LAMBDA_NAME="$OPTARG";;
+    c)  CONFIG="$OPTARG";;
     \?)
       # unknown flag
-      echo >&2 "usage: $0 [-u] [-l name] [-s location]"
+      echo >&2 "usage: $0 [-u] [-l name] [-s location] [-c file]"
       echo >&2 "-u: upload to Lambda"
       echo >&2 "-l: 'name' is your Lambda function name"
       echo >&2 "-s: 'location' is security asset location (user or sample)"
+      echo >&2 "-c: 'file' is the config file name"
       exit 1;;
   esac
 done
@@ -30,9 +35,6 @@ if [ "$SECURITY" = "user" ]; then
 else
   SEC_PATH="../security/sample"
 fi
-
-# Configuration file for client behavior
-CONFIG="./client.cfg"
 
 ROOT_CA="$SEC_PATH/rootCA.pem"
 CLIENT_CERT="$SEC_PATH/client.crt"
