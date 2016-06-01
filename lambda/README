@@ -7,7 +7,7 @@ this to Lambda.
 -------------------
 File Descriptions
 -------------------
-client.cfg - Configuration file for Lambda client
+client.cfg - Sample configuration file for Lambda client
 client.py - Lambda client implementation
 run_unit_tests.sh - Shell script to runs a series of tests against the client
 upload.sh - Shell script to create (and optionally upload) Lambda bundle

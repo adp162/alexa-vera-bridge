@@ -171,10 +171,10 @@ Next, we will upload the code for our Lambda function that will serve as the cli
 
 Setup the client as follows:
 
-1. Modify the `upload.sh` script with the files to include in the package.
+1. Copy `client.cfg` to a new config file and modify as necessary.
 2. Create the client certificate (see `security/README`).
 3. Make sure you have the AWS CLI tools installed (see `lambda/README`).
-3. Create and upload the bundle (run `upload.sh`).
+4. Create and upload the bundle (run `upload.sh`).
 
 ### Testing the Skill
 With the interaction model defined and our client code uploaded, the last thing we need to do is enable testing and enter a description for our skill (if desired).  Testing can be used to hear spoken responses from Alexa’s text-to-speech engine and also to see responses to utterances from the Lambda function we created.  Don’t worry about any of the fields that say “Required for Certification”.  These only become relevant if we ever want to publish our skill for anyone to use.
@@ -217,9 +217,9 @@ Basically, the server code takes care of listening for incoming connection reque
 We will setup the server as follows:
 
 1. Copy the Python code in `server/` to the Raspberry Pi (or whatever machine will run the server).
-2. Run `install_daemon.sh` to make the server persist (Linux/Mac only).
+2. Run `install.sh` to make the server persist (Linux/Mac only).
 3. Setup CA and server certificate (see `security/README`).
-4. Make modifications to `server.cfg`.
+4. Copy `server.cfg` to a new file and make modifications as necessary.
 5. Check the server using the provided test utility (`test_client.py`).
 6. Setup NAT on your router.
 
@@ -236,7 +236,7 @@ To access the Vera interface we need to know our Vera’s IP address.  The port 
 curl http://192.168.0.50:3480/data_request?id=lu_alive
 ```
 
-If everything is working, we should see the response ‘OK’.  To poll status, we use the ‘status’ request:
+If everything is working, we should see the response ‘OK’.  One common issue is that this interface is disabled if Vera security is turned on.  In UI7 this is a check box called "Secure your Vera" under "Users & Account Info -> Unit Settings".  It should be possible to send these commands through the Vera relay but that is outside the scope of this tutorial.  To poll status, we use the ‘status’ request:
 
 ```
 curl http://192.168.0.50:3480/data_request?id=status

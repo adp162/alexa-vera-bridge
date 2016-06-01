@@ -5,20 +5,13 @@ THINGS TO DO
 get run_unit_tests script parsing correctly
 test remote using aws invoke
 
-add test cases for test_client.py
+test_client.py command line options
 fix some server robustness in the way it handles connections
-
+ 
 security_test.py
- - psk is hardcoded to /sample directory
  - add capability for if file is missing to skip test
  - kill on error (for example failing to bind to socket)
 
-lambda
- - have to change entry point in AWS console (can it be done in upload.sh with CLI tools?)
+finish quick start documentation 
+
  
-test_client
- - if it fails the keys/certs are left in the directory. should cleanup
- 
- security
-  - On Mac a .srl is generated when creating new user certs. should add to git ignore...
-  - user .csr files not ignored

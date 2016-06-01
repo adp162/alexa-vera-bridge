@@ -9,14 +9,14 @@ specific (e.g. running as a service under Linux).
 Tested configurations
 -----------------------
 Mac OSX (10.11.2) running Python 2.7.10
-Ubuntu 14.04 running Python 2.7.11 (check)
-Windows 10 running Python 2.7.11 (check)
+Ubuntu 14.04 running Python 2.7.11
+Windows 10 running Python 2.7.11
  * Running as service requires external application (e.g. AlwaysUp)
-Raspbian Jesse running Python ?? (check)
+Raspbian Jesse running Python ?? (TODO - need to check)
 
 File Descriptions
 -------------------
-server.cfg - Configuration file for server
+server.cfg - Sample configuration file for server
 server.py - Server implementation
 test_client.py - Locally invokes client (lambda/client.py) to test server
 install.sh - Shell script that installs the server as a service

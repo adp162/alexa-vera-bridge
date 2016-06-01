@@ -7,6 +7,12 @@ security/user/*.crt
 security/user/*.pem
 security/user/*.srl
 
+# Ignore user generated config files
+lambda/*.cfg
+!lambda/client.cfg
+server/*.cfg
+!server/server.cfg
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
