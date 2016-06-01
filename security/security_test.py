@@ -10,10 +10,10 @@ import sys
 import pkgutil
 
 # Global variables
-#BASE_PATH='./user/'
-BASE_PATH='./sample/'
+#BASE_PATH='./user'
+BASE_PATH='./sample'
 
-CA_PATH = BASE_PATH + 'rootCA.pem'
+CA_PATH = BASE_PATH + '/rootCA.pem'
 PORT = 3000
 HOST = 'localhost'
 
@@ -23,8 +23,8 @@ def client_thread(lock):
     time.sleep(1)
 
     # Location of client cert/key
-    CLIENT_CERT_PATH = BASE_PATH + 'client.crt'
-    CLIENT_KEY_PATH = BASE_PATH + 'client.key'
+    CLIENT_CERT_PATH = BASE_PATH + '/client.crt'
+    CLIENT_KEY_PATH = BASE_PATH + '/client.key'
     
     print ('client: configuring security parameters.')
     
@@ -87,16 +87,22 @@ def main():
     
     # Check for presence of PyCrypto
     if pkgutil.find_loader('Crypto') is None:
-        print ('PyCrypto not found - try "pip install pycrypto"')
-        sys.exit()
+        print ('PyCrypto not in standard search path.')
+        print ('PATH = ' + str(sys.path))
+        print ('Appending alternate paths...')
+        alt_paths = '/usr/local/lib/python2.7/dist-packages'
+        sys.path.append(alt_paths)
+        if pkgutil.find_loader('Crypto') is None:
+            print ('PyCrypto not found - try "pip install pycrypto"')
+            sys.exit()
 
     # Import the modules we need from PyCrypto
     from Crypto.Cipher import AES
     from Crypto import Random
     
     # Read the pre-shared key
-    # FIXME: not sure why the newline gets read, but we need to strip it
-    f = open('./sample/psk.bin', 'r')
+    # Note that the newline gets read, so we need to strip it
+    f = open(BASE_PATH + '/psk.bin', 'r')
     key_base64 = f.read().rstrip('\n')
     key = base64.b64decode(key_base64)
     f.close()
@@ -121,6 +127,8 @@ def main():
     dec = dec_cipher.decrypt(enc)
 
     # Display the results
+    print
+    print ('--------------------------------')
     print ('AES Cipher Example (256 bit key)')
     print ('--------------------------------')
     print ('Secret key:   ' + key_base64)
@@ -143,10 +151,10 @@ def main():
     t.start()
 
     # Location of server cert/key
-    SERVER_CERT_PATH = BASE_PATH + 'server.crt'
-    SERVER_KEY_PATH = BASE_PATH + 'server.key'
+    SERVER_CERT_PATH = BASE_PATH + '/server.crt'
+    SERVER_KEY_PATH = BASE_PATH + '/server.key'
     
-    print ('server: configuring security parameters.')
+    print ('server: configuring security for SSL mutual authentication.')
     
     # Create the SSL context to authenticate client
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)

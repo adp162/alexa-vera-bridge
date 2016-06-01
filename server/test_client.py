@@ -30,7 +30,30 @@ def main():
     resp = client.send_vera_message(socket, data)
     print resp
 
-    # TODO - add more test cases
+    # TEST: Run scene 2
+    data = { 'id':2, 'action': {'type': 'run' }, 'close_connection':True }
+    resp = client.send_vera_message(socket, data)
+    print resp
+
+    # TEST: Turn device 1 on
+    data = { 'id':1, 'action': {'type': 'set', 'attribute': {'power': 1} }, 'close_connection':False }
+    resp = client.send_vera_message(socket, data)
+    print resp
+
+    # TEST: Get device 1 status
+    data = { 'id':1, 'action': {'type': 'get' }, 'close_connection':False }
+    resp = client.send_vera_message(socket, data)
+    print resp
+
+    # TEST: Turn device 1 off
+    data = { 'id':1, 'action': {'type': 'set', 'attribute': {'power': 0} }, 'close_connection':True }
+    resp = client.send_vera_message(socket, data)
+    print resp
+
+    # TEST: Get device 1 status
+    data = { 'id':1, 'action': {'type': 'get' }, 'close_connection':True }
+    resp = client.send_vera_message(socket, data)
+    print resp
 
     # Remove the security assets copied earlier
     os.remove('rootCA.pem')
