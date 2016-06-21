@@ -163,64 +163,55 @@ def open_connection_to_vera():
     # Valid combinations are:
     #   1) none - just do regulat connection (INSECURE)
     #   2) just the section - use ssl/tls but with no auth
-    #   3) root_ca only - ssl/tls with server validation
-    #   4) root_ca plus client cert/key- give out certificate to server
+    #   3) root_ca plus client cert/key- mutual auth
     security = 'none'
     if cfg.has_section('security'):
         security = 'ssl'
-        if cfg.has_option('security', 'root_ca'):
-            security = 'ssl_server_auth'
+        if cfg.has_option('security', 'root_ca') and cfg.has_option('security', 'cert') and cfg.has_option('security', 'key'):
+            security='ssl_mutual_auth'
             root_ca = cfg.get('security', 'root_ca')
-            if cfg.has_option('security', 'cert') and cfg.has_option('security', 'key'):
-                security='ssl_mutual_auth'
-                cert = cfg.get('security', 'cert')
-                key = cfg.get('security', 'key')
+            cert = cfg.get('security', 'cert')
+            key = cfg.get('security', 'key')
 
     print ('configuring client security profile as "' + security + '"')
-    # Try a regular connection (INSECURE)
-    if security == 'none':
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print ('connect to ' + hostname + ':' + str(port) + ' (INSECURE)')
-    
-        try:
-            s.connect((hostname, port))
-        except socket.error as msg:
-            print ('socket error (' + str(msg[0]) + '): ' + msg[1])
-            return (None, msg[1])
 
-        # On successful connect return the socket
-        return (s, None)
-    elif security == 'ssl' or security == 'ssl_server_auth' or security == 'ssl_mutual_auth':
+    # Create the socket
+    sock = None
+    if security == 'none':
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print ('connect to ' + hostname + ':' + str(port) + ' (INSECURE)')
+    elif security == 'ssl' or security == 'ssl_mutual_auth':
         # Create the SSL context depending on the credentials given in the config file
         if (security == 'ssl'):
-            context = ssl.create_default_context()
+            context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+            context.set_ciphers('HIGH')
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
         else:
             context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
             context.load_verify_locations(root_ca)
             context.verify_mode = ssl.CERT_REQUIRED
-            if security == 'ssl_mutual_auth':
-                context.load_cert_chain(certfile=cert, keyfile=key)
+            context.load_cert_chain(certfile=cert, keyfile=key)
     
         # Create the socket and wrap it in our context to secure
         # By specifying server_hostname we require the server's certificate to match the
         # hostname we provide
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        secure_s = context.wrap_socket(s, server_hostname=hostname)
+        sock = context.wrap_socket(s, server_hostname=hostname)
         print ('connect to ' + hostname + ':' + str(port) + ' (SSL/TLS)')
-
-        try:
-            secure_s.connect((hostname, port))
-        except socket.error as msg:
-            print ('socket error (' + str(msg[0]) + '): ' + msg[1])
-            return (None, msg[1])
-
-        # On successful connection return the secure socket
-        return (secure_s, None)
     else:
         # We don't have a valid security context
         return (None, 'invalid security context')
+
+    # Try to connect
+    try:
+        sock.connect((hostname, port))
+    except socket.error as msg:
+        print ('socket error (' + str(msg[0]) + '): ' + msg[1])
+        return (None, msg[1])
+
+    # On successful connection return the secure socket
+    return (sock, None)
 
 def close_connection_to_vera(s):
     # Close the socket

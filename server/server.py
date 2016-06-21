@@ -157,18 +157,15 @@ def main():
     # Valid combinations are:
     #   1) none - just do regular connection (INSECURE)
     #   2) just the section - use ssl/tls but with no auth
-    #   3) root_ca only - ssl/tls with client validation
-    #   4) root_ca plus client cert/key- give out certificate to client
+    #   3) root_ca plus client cert/key- give out certificate to client
     security = 'none'
     if cfg.has_section('security'):
         security = 'ssl'
-        if cfg.has_option('security', 'root_ca'):
-            security = 'ssl_client_auth'
+        if cfg.has_option('security', 'root_ca') and cfg.has_option('security', 'cert') and cfg.has_option('security', 'key'):
+            security = 'ssl_mutual_auth'
             root_ca = cfg.get('security', 'root_ca')
-            if cfg.has_option('security', 'cert') and cfg.has_option('security', 'key'):
-                security='ssl_mutual_auth'
-                cert = cfg.get('security', 'cert')
-                key = cfg.get('security', 'key')
+            cert = cfg.get('security', 'cert')
+            key = cfg.get('security', 'key')
 
     print ('configuring server security profile as "' + security + '"')
     
@@ -196,14 +193,13 @@ def main():
         # No need to create an SSL context
         pass
     elif security == 'ssl':
-        # Create defautl SSL context with no authentication
-        context = ssl.create_default_context()
+        # Setting recommended for max compatibility. Note however that SSLv2
+        # and v3 are not considered secure.
+        # See: https://docs.python.org/2/library/ssl.html
+        context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+        context.set_ciphers('HIGH')
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
-    elif security == 'ssl_client_auth':
-        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        context.load_verify_locations(root_ca)
-        context.verify_mode = ssl.CERT_REQUIRED
     elif security == 'ssl_mutual_auth':
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         context.load_verify_locations(root_ca)
