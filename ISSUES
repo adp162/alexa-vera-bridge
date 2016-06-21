@@ -1,17 +1,48 @@
-ISSUES
-1) with plain ssl security (no cert checking) we get a no shared cipher error
-
 THINGS TO DO
 get run_unit_tests script parsing correctly
 test remote using aws invoke
 
 test_client.py command line options
 fix some server robustness in the way it handles connections
- 
+
 security_test.py
  - add capability for if file is missing to skip test
  - kill on error (for example failing to bind to socket)
 
 finish quick start documentation 
 
+On server
+-----------
+TODO
+ - make messaging more robust
+   - fix msg protocol
+   - multi-threaded server design (timeout dead connections)
+   - more error checking
+ - install server as service
+ - logging feature
+ - abstract out messaging protocol to Vera (or make it more extensible?)
+
+On client
+-----------
+TESTING
+ - talking to server with various security settings
+ - running unit tests
+
+TODOs
+ - What are session_attributes?
+ - various flows a skill gets invoked with
+ - get_logs.sh - pulls cloudwatch log for debugging
+ - do i import everything with __future__?
  
+ - add support for symmetric key attribute in config
+ 
+ - msg/ directory for messaging protocol interface
+  - new msg (can req particular version) (fills in default header fields (version, etc)
+  - in constructor optionally specify (version, key)
+  - if key is used then msg depends on pycrypto for encrypt/decrypt
+  - header: <msg length 4 bytes, version 2 bytes, enc 2 bytes, iv 16 bytes?>
+  - body: json object (potentially encrypted)
+  - send (concat header with body and sendall) waits for reply if expect
+  - recv (loop until entire msg received, send reply if needed)
+  - get_data - returns dict with current data
+  - set_data - sets payload to provided dict (error checking according to fields support in versio)

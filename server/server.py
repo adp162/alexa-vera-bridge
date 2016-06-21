@@ -220,7 +220,7 @@ def main():
             secure_s = context.wrap_socket(new_s, server_side=True)
 
         # Kick off a thread to handle the new client
-        # TODO
+        # FIXME
         
         # FIXME - this goes in the client thread
         # Should have 2 loops - recv header loop followed by recv msg loop

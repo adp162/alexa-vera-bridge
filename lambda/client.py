@@ -9,31 +9,6 @@ import json
 import ConfigParser
 
 """
-TESTING
- - talking to server with various security settings
- - running unit tests
-
-TODOs
- - What are session_attributes?
- - various flows a skill gets invoked with
- - get_logs.sh - pulls cloudwatch log for debugging
- - do i import everything with __future__?
- 
- - add support for symmetric key attribute in config
- 
- - msg/ directory for messaging protocol interface
-  - new msg (can req particular version) (fills in default header fields (version, etc)
-  - in constructor optionally specify (version, key)
-  - if key is used then msg depends on pycrypto for encrypt/decrypt
-  - header: <msg length 4 bytes, version 2 bytes, enc 2 bytes, iv 16 bytes?>
-  - body: json object (potentially encrypted)
-  - send (concat header with body and sendall) waits for reply if expect
-  - recv (loop until entire msg received, send reply if needed)
-  - get_data - returns dict with current data
-  - set_data - sets payload to provided dict (error checking according to fields support in versio)
-"""
-
-"""
 The lambda_handler is the entry point of our Lambda function. ASK always invokes
 this handler as the RequestResponse type and so the data returned by the handler
 function is included in the HTTP response returned to ASK.
@@ -261,7 +236,7 @@ def get_device(socket, intent, session):
 
     if 'Device' in intent['slots']:
         device = intent['slots']['Device']['value']
-        session_attributes = {} # TODO - what is the purpose of these?
+        session_attributes = {}
         
         data = { 'id':int(device), 'action': {'type': 'get' },'close_connection':True }
         
@@ -287,7 +262,7 @@ def set_device(socket, intent, session):
     if 'Device' in intent['slots'] and 'Action' in intent['slots']:
         device = intent['slots']['Device']['value']
         action = intent['slots']['Action']['value']
-        session_attributes = {} # TODO - what is the purpose of these?
+        session_attributes = {}
         
         if action == 'on':
             value = 1
@@ -318,7 +293,7 @@ def run_scene(socket, intent, session):
 
     if 'Scene' in intent['slots']:
         scene = intent['slots']['Scene']['value']
-        session_attributes = {} # TODO - what is the purpose of these?
+        session_attributes = {}
         
         data = { 'id':int(scene), 'action': {'type': 'run' },'close_connection':True }
         

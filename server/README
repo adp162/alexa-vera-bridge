@@ -12,7 +12,7 @@ Mac OSX (10.11.2) running Python 2.7.10
 Ubuntu 14.04 running Python 2.7.11
 Windows 10 running Python 2.7.11
  * Running as service requires external application (e.g. AlwaysUp)
-Raspbian Jesse running Python ?? (TODO - need to check)
+Raspbian Jesse running Python 2.7.11
 
 File Descriptions
 -------------------
@@ -20,12 +20,3 @@ server.cfg - Sample configuration file for server
 server.py - Server implementation
 test_client.py - Locally invokes client (lambda/client.py) to test server
 install.sh - Shell script that installs the server as a service
-
-TODO
- - make messaging more robust
-   - fix msg protocol
-   - multi-threaded server design (timeout dead connections)
-   - more error checking
- - install server as service
- - logging feature
- - abstract out messaging protocol to Vera (or make it more extensible?)
