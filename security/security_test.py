@@ -11,7 +11,7 @@ import pkgutil
 import os
 
 # Global variables
-BASE_PATH='./user'
+BASE_PATH='./sample'
 
 CA_PATH = BASE_PATH + '/rootCA.pem'
 PORT = 3000
