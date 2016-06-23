@@ -5,10 +5,6 @@ test remote using aws invoke
 test_client.py command line options
 fix some server robustness in the way it handles connections
 
-security_test.py
- - add capability for if file is missing to skip test
- - kill on error (for example failing to bind to socket)
-
 finish quick start documentation 
 
 On server

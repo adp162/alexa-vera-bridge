@@ -8,9 +8,10 @@ import threading
 import pprint
 import sys
 import pkgutil
+import os
 
 # Global variables
-BASE_PATH='./sample'
+BASE_PATH='./user'
 
 CA_PATH = BASE_PATH + '/rootCA.pem'
 PORT = 3000
@@ -54,10 +55,15 @@ def start_server(security, lock):
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
     elif security == 'ssl_mutual_auth':
-        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        context.load_verify_locations(CA_PATH)
-        context.verify_mode = ssl.CERT_REQUIRED
-        context.load_cert_chain(certfile=SERVER_CERT_PATH, keyfile=SERVER_KEY_PATH)
+        # Make sure the cert files are present
+        if os.path.isfile(SERVER_CERT_PATH) and os.path.isfile(SERVER_KEY_PATH):
+            context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            context.load_verify_locations(CA_PATH)
+            context.verify_mode = ssl.CERT_REQUIRED
+            context.load_cert_chain(certfile=SERVER_CERT_PATH, keyfile=SERVER_KEY_PATH)
+        else:
+            print "Missing server security assets!"
+            return s
 
     # Wait here for a client to connect
     # accept() will block until a client has tried to connect
@@ -100,7 +106,7 @@ def client_thread(security, lock):
     # Location of client cert/key
     CLIENT_CERT_PATH = BASE_PATH + '/client.crt'
     CLIENT_KEY_PATH = BASE_PATH + '/client.key'
-    
+
     print ('client: configuring security profile as "' + security + '"')
     
     # Try a regular connection (INSECURE)
@@ -120,10 +126,15 @@ def client_thread(security, lock):
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
     elif security == 'ssl_mutual_auth':
-        context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-        context.load_verify_locations(CA_PATH)
-        context.verify_mode = ssl.CERT_REQUIRED
-        context.load_cert_chain(certfile=CLIENT_CERT_PATH, keyfile=CLIENT_KEY_PATH)
+        # Make sure the certificates exist
+        if os.path.isfile(CLIENT_CERT_PATH) and os.path.isfile(CLIENT_KEY_PATH):
+            context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+            context.load_verify_locations(CA_PATH)
+            context.verify_mode = ssl.CERT_REQUIRED
+            context.load_cert_chain(certfile=CLIENT_CERT_PATH, keyfile=CLIENT_KEY_PATH)
+        else:
+            print "Missing client security assets!"
+            return
 
     if security != 'none':
         # Create the socket and wrap it in our context to secure
@@ -174,33 +185,14 @@ def client_thread(security, lock):
     # Close the socket
     sock.close()
 
-def main():
-    # Check for the right Python version
-    if sys.version_info < (2, 7, 9):
-        print ('Python version must be 2.7.9 or greater.')
-        sys.exit()
-    
-    # Check for presence of PyCrypto
-    if pkgutil.find_loader('Crypto') is None:
-        print ('PyCrypto not in standard search path.')
-        print ('PATH = ' + str(sys.path))
-        print ('Appending alternate paths...')
-        alt_paths = '/usr/local/lib/python2.7/dist-packages'
-        sys.path.append(alt_paths)
-        if pkgutil.find_loader('Crypto') is None:
-            print ('PyCrypto not found - try "pip install pycrypto"')
-            sys.exit()
-
+# Function that performs encryption/decryption with a symmetric key
+def sym_enc_test(key_base64):
     # Import the modules we need from PyCrypto
     from Crypto.Cipher import AES
     from Crypto import Random
-    
-    # Read the pre-shared key
-    # Note that the newline gets read, so we need to strip it
-    f = open(BASE_PATH + '/psk.bin', 'r')
-    key_base64 = f.read().rstrip('\n')
+
+    # Convert the base64 encoded key back to binary
     key = base64.b64decode(key_base64)
-    f.close()
 
     #
     # Encrypt/Decrypt and examine results
@@ -232,14 +224,54 @@ def main():
     print ('Encrypted:    ' + base64.b64encode(enc))
     print ('Decrypted:    ' + dec.rstrip('*'))
     print
-    
+
+def main():
+    # Check for the right Python version
+    if sys.version_info < (2, 7, 9):
+        print ('Python version must be 2.7.9 or greater.')
+        sys.exit()
+
+    run_sym_enc_test = True
+    # Check for presence of PyCrypto
+    if pkgutil.find_loader('Crypto') is None:
+        print ('PyCrypto not in standard search path.')
+        print ('PATH = ' + str(sys.path))
+        print ('Appending alternate paths...')
+        alt_paths = '/usr/local/lib/python2.7/dist-packages'
+        sys.path.append(alt_paths)
+        if pkgutil.find_loader('Crypto') is None:
+            print ('PyCrypto not found - try "pip install pycrypto"')
+            run_sym_enc_test = False
+
+    # Read the pre-shared key
+    print
+    print ('--------------------------------')
+    print ('       Symmetric Key Test')
+    print ('--------------------------------')
+    try:
+        f = open(BASE_PATH + '/psk.bin', 'r')
+        # Note that the newline gets read, so we need to strip it
+        key_base64 = f.read().rstrip('\n')
+        f.close()
+    except IOError as e:
+        print "I/O error({0}): {1}".format(e.errno, e.strerror)
+        run_sym_enc_test = False
+    except:
+        print "Unexpected error:", sys.exc_info()[0]
+        run_sym_enc_test = False
+
+    # If we have PyCrypto installed and the PSK file then we can run the test
+    if run_sym_enc_test:
+        sym_enc_test(key_base64)
+    else:
+        print "Skipping symmetric encryption test with PSK."
+
     #
     # Setup client/server running on localhost with various security parameters
     #
 
     # Check OpenSSL version
-    print ('OpenSSL version is:')
-    print (ssl.OPENSSL_VERSION)
+    print ('OpenSSL version is: ' + ssl.OPENSSL_VERSION)
 
     # Create a lock for synchronization between threads
     lock = threading.Lock()
