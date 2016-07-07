@@ -5,8 +5,23 @@ import sys
 import requests
 import ConfigParser
 import argparse
+import threading
+from avbmsg import AVBMessage
 
 """
+This is the underlying data format that AVBMessage wraps in a header
+and optionally encrypts. The various fields are as follows:
+
+id: The numeric device id we want to interact with
+action: A block that specifies the type of action and attribute data
+  (only used for "set" action type)
+
+  type: Type of action, currently support get/set/run
+    - "get" - returns information about the device
+    - "set" - sets the specified attributes to the specified values
+    - "run" - only applies to scenes
+  attribute: The only valid attribute is "power" for on/off type devices
+
 JSON message format example (Client->Server):
 {
     "id": 1,
@@ -17,9 +32,13 @@ JSON message format example (Client->Server):
         {
             "power": 1
         }
-    },
-    "close_connection": true
+    }
 }
+
+status: 0 indicates success, 1 an error, 2 simulated mode
+err_str: a string indicating what failed that Alexa will dictate
+id: the device id
+data: data returned for a "get" action type
 
 JSON message format example (Server->Client):
 {
@@ -35,16 +54,18 @@ JSON message format example (Server->Client):
 """
 
 def handle_msg(s, vera_ip, vera_port, msg):
-    
-    print 'got msg: ' + msg
+    print 'got msg: ' + msg.dumps()
+    resp_data = None
+
     # Parse the received message.
-    data = json.loads(msg)
+    data = msg.get_data()
     if data == None:
         print 'Failed to decode message!'
-        resp = {'status': 1, 'err_str': 'bad message format', 'data': None}
-        s.sendall(json.dumps(resp))
-        return True
-    
+        resp_data = {'status': 1, 'err_str': 'bad message format', 'data': None}
+        resp = AVBMessage(data=resp_data)
+        s.sendall(resp.dumps())
+        return False
+
     # Turn message into appropriate Vera action
     # Currently, we support 3 types of actions (get/set/run). Get/set apply to
     # devices while run appies to scenes
@@ -68,53 +89,103 @@ def handle_msg(s, vera_ip, vera_port, msg):
 
     else:
         print 'invalid action'
-        resp = {'status': 1, 'err_str': 'invalid action', 'data': None}
-        s.sendall(json.dumps(resp))
-        return True
-    
-    # Send the appropriate HTTP request to Vera
-    dest = 'http://' + vera_ip + ':' + vera_port + '/data_request'
-    print
-    print 'sending to: ' + dest
-    print 'params: ' + str(vera_params)
-    print
+        resp_data = {'status': 1, 'err_str': 'invalid action', 'data': None}
+        resp = AVBMessage(data=resp_data)
+        s.sendall(resp.dumps())
+        return False
 
-    try:
-        r = requests.get(dest, params=vera_params)
-    except requests.exceptions.RequestException as e:
-        print e
-        resp = {'status': 2, 'err_str': 'requests exception', 'data': None}
-        s.sendall(json.dumps(resp))
-        return True
+    if vera_ip is not None:
+        # Send the appropriate HTTP request to Vera
+        dest = 'http://' + vera_ip + ':' + vera_port + '/data_request'
+        print
+        print 'sending to: ' + dest
+        print 'params: ' + str(vera_params)
+        print
 
-    if r.status_code != 200:
-        print 'Non-200 response from Vera'
-        print 'Code: ' + str(r.status_code)
-        resp = {'status': 2, 'err_str': 'bad response from Vera', 'data': None}
-        s.sendall(json.dumps(resp))
-        return True
+        try:
+            r = requests.get(dest, params=vera_params)
+        except requests.exceptions.RequestException as e:
+            print e
+            resp_data = {'status': 2, 'err_str': 'requests exception', 'data': None}
+            resp = AVBMessage(data=resp_data)
+            s.sendall(resp.dumps())
+            return False
+
+        if r.status_code != 200:
+            print 'Non-200 response from Vera'
+            print 'Code: ' + str(r.status_code)
+            resp_data = {'status': 2, 'err_str': 'bad response from Vera', 'data': None}
+            resp = AVBMessage(data=resp_data)
+            s.sendall(resp.dumps())
+            return False
                         
-    # Get the returned JSON from Vera (only for 'get' action)
-    resp_data = None
-    if action == 'get':
-        status = r.json()
+        # Get the returned JSON from Vera (only for 'get' action)
+        if action == 'get':
+            status = r.json()
 
-        for dev in status['devices']:
-            if dev['id'] == obj_id:
-                for state in dev['states']:
-                    if state['variable'] == 'Status':
-                        verastate = state['value']
-                    if state['variable'] == 'ConfiguredName':
-                        veraname = state['value']
-        resp_data = {'status':verastate, 'name':veraname}
+            verastate = 'unknown'
+            veraname = 'unknown'
+            for dev in status['devices']:
+                if dev['id'] == obj_id:
+                    for state in dev['states']:
+                        if state['variable'] == 'Status':
+                            verastate = state['value']
+                        if state['variable'] == 'ConfiguredName':
+                            veraname = state['value']
+            resp_data = {'status': 0, 'err_str': None, 'data': {'status':verastate, 'name':veraname}}
+        else:
+            resp_data = {'status': 0, 'err_str': None, 'data': None}
+
+        # Send the response
+        resp = AVBMessage(data=resp_data)
+        print 'sending: ' + resp.dumps()
+        s.sendall(resp.dumps())
+    else:
+        # Send the simulated response (echo received data back)
+        resp_data = {'status': 2, 'err_str': 'vera simulation', 'data': data}
+        resp = AVBMessage(data=resp_data)
+        print 'sending: ' + resp.dumps()
+        s.sendall(resp.dumps())
+
+    return True
+
+# Entry point for new thread to handle specific client connection
+def client_thread(secure_s, ip, port):
+    m = AVBMessage()
     
-    # Send the response
-    resp = {'status': 0, 'err_str': None, 'data': resp_data}
-    print 'sending: ' + json.dumps(resp)
-    s.sendall(json.dumps(resp))
-    
-    return data['close_connection']
-        
+    while True:
+        # Get a new message header
+        chunks = []
+        nb = 0
+        while nb < AVBMessage.HEADER_SIZE:
+            chunk = secure_s.recv(AVBMessage.HEADER_SIZE - nb)
+            if chunk == '':
+                print 'connection broken or closed by client'
+                return
+            chunks.append(chunk)
+            nb += len(chunk)
+        msg = ''.join(chunks)
+
+        # Get the length and wait for the rest
+        m.loads(msg)
+        while nb < m.len():
+            chunk = secure_s.recv(min(m.len() - nb, 1024))
+            if chunk == '':
+                print 'connection broken or closed by client'
+                return
+            chunks.append(chunk)
+            nb += len(chunk)
+        msg = ''.join(chunks)
+
+        # Handle the message
+        # Pass in IP address and port of vera (as strings). These are used to form
+        # the URL to send the request to Vera.
+        m.loads(msg)
+        if not handle_msg(secure_s, ip, str(port), m):
+            print 'error handling message, server closing connection'
+            secure_s.close()
+            return
+
 def main():
     # Read the configuration file
     cfg = ConfigParser.RawConfigParser()
@@ -122,6 +193,7 @@ def main():
     # If the user provides a file use that, otherwise use the default
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', help='path to server config file')
+    parser.add_argument('--no-vera', action='store_true', help='switch to not send anything to Vera')
     args = parser.parse_args()
     cfg_file = './server.cfg'
     if args.config is not None:
@@ -185,8 +257,8 @@ def main():
         print '(err ' + str(msg[0]) + '): ' + msg[1]
         sys.exit()
 
-    # start listening (with max 3 connections queued)
-    s.listen(3)
+    # start listening (with max 5 connections queued)
+    s.listen(5)
 
     # Setup the SSL context based on assets provided in the config file
     if security == 'none':
@@ -206,9 +278,17 @@ def main():
         context.verify_mode = ssl.CERT_REQUIRED
         context.load_cert_chain(certfile=cert, keyfile=key)
 
+    # If the switch to turn off Vera communication was specified we will
+    # overwrite the vera_ip with None
+    if args.no_vera:
+        print 'Vera communication disabled.'
+        vera_ip = None
+
     # Now that the server is listening, we can enter our main loop where we
     # wait for connections
+    client_threads = []
     while True:
+        print 'waiting for connection...'
         # accept() will block until a client has tried to connect
         (new_s, addr) = s.accept()
         print 'connection from ' + addr[0] + ':' + str(addr[1])
@@ -220,30 +300,10 @@ def main():
             secure_s = context.wrap_socket(new_s, server_side=True)
 
         # Kick off a thread to handle the new client
-        # FIXME
-        
-        # FIXME - this goes in the client thread
-        # Should have 2 loops - recv header loop followed by recv msg loop
-        # the client will always wait for a response from the server, but
-        # close connection tells the server that the client is done
-        # We should also check for rcv() returning '' as this means the socket died
-        # Have a max length on the message
-        #header: <msg length 4 bytes, version 2 bytes, enc 2 bytes, iv 16 bytes?>
-        #body: json object (potentially encrypted)
-
-        client_done = False
-        while client_done == False:
-            # Wait for a new message
-            msg = secure_s.recv(1024)
-        
-            # Handle the message
-            # Pass in IP address and port of vera (as strings). These are used to form
-            # the URL to send the request to Vera.
-            client_done = handle_msg(secure_s, vera_ip, str(vera_port), msg)
-        
-        # Close the connection
-        secure_s.close()
-        print 'closed connection'
+        t = threading.Thread(target=client_thread, args=(secure_s, vera_ip, vera_port,))
+        t.start()
+        client_threads.append(t)
+        print client_threads
         
 if __name__ == '__main__':
     main()

@@ -1,22 +1,24 @@
 THINGS TO DO
-get run_unit_tests script parsing correctly
-test remote using aws invoke
-
-test_client.py command line options
-fix some server robustness in the way it handles connections
-
-finish quick start documentation 
+--------------
+1) get run_unit_tests script parsing correctly
+2) test remote using aws invoke
+3) test_client.py command line options
+4) finish quick start documentation
+5) be better with device names. for example, i should be able to say "Alexa, ask
+  vera to turn on the bedroom light" instead of "Alexa, ask vera to to turn on device 1"
+  This requires parsing the device information we get back from Vera via the /status
+  endpoint and also extending the ASK voice model to parse out the names. 
 
 On server
 -----------
-TODO
- - make messaging more robust
-   - fix msg protocol
-   - multi-threaded server design (timeout dead connections)
-   - more error checking
+TESTING
+ - multiple clients
+ - stress testing (unecessary but fun)
+
+TODOs
  - install server as service
  - logging feature
- - abstract out messaging protocol to Vera (or make it more extensible?)
+ - add config file support for psk
 
 On client
 -----------
@@ -24,21 +26,11 @@ TESTING
  - talking to server with various security settings
  - running unit tests
 
-TODOs
+QUESTIONS
  - What are session_attributes?
- - various flows a skill gets invoked with
- - get_logs.sh - pulls cloudwatch log for debugging
+ - What are the various flows a skill gets invoked with?
  - do i import everything with __future__?
- 
- - add support for symmetric key attribute in config
- 
- - msg/ directory for messaging protocol interface
-  - new msg (can req particular version) (fills in default header fields (version, etc)
-  - in constructor optionally specify (version, key)
-  - if key is used then msg depends on pycrypto for encrypt/decrypt
-  - header: <msg length 4 bytes, version 2 bytes, enc 2 bytes, iv 16 bytes?>
-  - body: json object (potentially encrypted)
-  - send (concat header with body and sendall) waits for reply if expect
-  - recv (loop until entire msg received, send reply if needed)
-  - get_data - returns dict with current data
-  - set_data - sets payload to provided dict (error checking according to fields support in versio)
+
+TODOs
+ - get_logs.sh - pulls cloudwatch log for debugging
+ - add config file support for psk

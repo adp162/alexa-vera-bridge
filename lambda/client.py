@@ -7,6 +7,7 @@ from __future__ import print_function
 import socket, ssl
 import json
 import ConfigParser
+from avbmsg import AVBMessage
 
 """
 The lambda_handler is the entry point of our Lambda function. ASK always invokes
@@ -195,16 +196,37 @@ def close_connection_to_vera(s):
 
 def send_vera_message(s, data):
     # Encode the message, send to Vera, and wait for response
-    msg = json.dumps(data)
-    print ('sending msg: ' + msg)
-    s.sendall(msg)
+    msg = AVBMessage(data=data)
+    print ('sending msg: ' + msg.dumps())
+    s.sendall(msg.dumps())
 
-    # Wait for a response
-    resp = s.recv(1024)
-    print ('resp: ' + resp)
+    # Get a new message header
+    chunks = []
+    nb = 0
+    while nb < AVBMessage.HEADER_SIZE:
+        chunk = s.recv(AVBMessage.HEADER_SIZE - nb)
+        if chunk == '':
+            raise RuntimeError('socket connection broken')
+        chunks.append(chunk)
+        nb += len(chunk)
+    resp = ''.join(chunks)
+
+    # Get the length and wait for the rest
+    m = AVBMessage()
+    m.loads(resp[0:AVBMessage.HEADER_SIZE])
+    while nb < m.len():
+        chunk = s.recv(min(m.len() - nb, 1024))
+        if chunk == '':
+            raise RuntimeError('socket connection broken')
+        chunks.append(chunk)
+        nb += len(chunk)
+    resp = ''.join(chunks)
+    m.loads(resp)
+
+    print ('resp: ' + m.dumps())
         
     # Decode the received message
-    return json.loads(resp)
+    return m.get_data()
 
 
 # --------------- Functions that control the skill's behavior ------------------
@@ -238,7 +260,7 @@ def get_device(socket, intent, session):
         device = intent['slots']['Device']['value']
         session_attributes = {}
         
-        data = { 'id':int(device), 'action': {'type': 'get' },'close_connection':True }
+        data = { 'id':int(device), 'action': {'type': 'get' } }
         
         resp = send_vera_message(socket, data)
         if resp['status'] == 0:
@@ -270,7 +292,7 @@ def set_device(socket, intent, session):
             value = 0
         else:
             value = 0
-        data = { 'id':int(device), 'action': {'type': 'set', 'attribute': {'power':value} },'close_connection':True }
+        data = { 'id':int(device), 'action': {'type': 'set', 'attribute': {'power':value} } }
         
         resp = send_vera_message(socket, data)
         if resp['status'] == 0:
@@ -295,7 +317,7 @@ def run_scene(socket, intent, session):
         scene = intent['slots']['Scene']['value']
         session_attributes = {}
         
-        data = { 'id':int(scene), 'action': {'type': 'run' },'close_connection':True }
+        data = { 'id':int(scene), 'action': {'type': 'run' } }
         
         resp = send_vera_message(socket, data)
         if resp['status'] == 0:
