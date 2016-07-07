@@ -2,6 +2,7 @@
 import sys
 import os
 from shutil import copyfile
+import argparse
 
 # Actually use the client code to test sending server message
 # Note that you must have ../lambda in your PYTHONPATH variable for this
@@ -36,7 +37,11 @@ def main():
     #   To send a real command to Vera, use the command line argument described
     #   below.
 
-    # TODO argparse for real vera command
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-a', '--action', help='action type', type=str, choices=['get', 'set', 'run'])
+    parser.add_argument('-d', '--device', help='device id', type=int)
+    parser.add_argument('-c', '--command', help='the command to send', type=str, choices=['on', 'off'])
+    args = parser.parse_args()
 
     # Change to lambda directory because all the client.py functions assume the
     # files they need (certs, config, etc.) are in the same directory
@@ -48,29 +53,46 @@ def main():
     copyfile('../security/sample/client.key', './client.key')
     copyfile('../security/sample/psk.bin', './psk.bin')
 
-    # TEST: Run scene 1
-    data = { 'id':1, 'action': {'type': 'run' } }
-    run_test(1, data)
+    # Did we specify any of the optional arguments?
+    if args.action or args.device or args.command:
+        # Do some sanity checks
+        if args.action is None or args.device is None:
+            parser.error('You must specify device, and action')
+        if args.action == 'set' and args.command is None:
+            parser.error('You must specify a command with set action')
 
-    # TEST: Run scene 2
-    data = { 'id':2, 'action': {'type': 'run' } }
-    run_test(2, data)
+        # Setup the data, run the request, then exit
+        attr = None
+        if args.command == 'on':
+            attr = {'power': 1}
+        elif args.command == 'off':
+            attr = {'power': 0}
+        data = { 'id':args.device, 'action': {'type': args.action, 'attribute': attr } }
+        run_test(0, data)
+    else:
+        # TEST: Run scene 1
+        data = { 'id':1, 'action': {'type': 'run' } }
+        run_test(1, data)
 
-    # TEST: Turn device 1 on and get status
-    data = [ { 'id':1, 'action': {'type': 'set', 'attribute': {'power': 1} } },
-             { 'id':1, 'action': {'type': 'get' } } ]
-    run_test(3, data)
+        # TEST: Run scene 2
+        data = { 'id':2, 'action': {'type': 'run' } }
+        run_test(2, data)
 
-    # TEST: Get status, turn device 1 off, get status again
-    data = [ { 'id':1, 'action': {'type': 'get' } },
-             { 'id':1, 'action': {'type': 'set', 'attribute': {'power': 0} } },
-             { 'id':1, 'action': {'type': 'get' } } ]
-    run_test(4, data)
+        # TEST: Turn device 1 on and get status
+        data = [ { 'id':1, 'action': {'type': 'set', 'attribute': {'power': 1} } },
+                 { 'id':1, 'action': {'type': 'get' } } ]
+        run_test(3, data)
 
-    # TODO - more tests
-    # TEST: leave socket open (eventually server should kill)
-    # TEST: poorly formatted message (server should kill)
-    # TEST: bombard server with simultaneous requests
+        # TEST: Get status, turn device 1 off, get status again
+        data = [ { 'id':1, 'action': {'type': 'get' } },
+                 { 'id':1, 'action': {'type': 'set', 'attribute': {'power': 0} } },
+                 { 'id':1, 'action': {'type': 'get' } } ]
+        run_test(4, data)
+
+        # TODO - more tests
+        # TEST: leave socket open (eventually server should kill)
+        # TEST: poorly formatted message (server should kill)
+        # TEST: bombard server with simultaneous requests
 
     # Remove the security assets copied earlier
     os.remove('rootCA.pem')

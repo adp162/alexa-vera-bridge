@@ -2,7 +2,6 @@ THINGS TO DO
 --------------
 1) get run_unit_tests script parsing correctly
 2) test remote using aws invoke
-3) test_client.py command line options
 4) finish quick start documentation
 5) be better with device names. for example, i should be able to say "Alexa, ask
   vera to turn on the bedroom light" instead of "Alexa, ask vera to to turn on device 1"
