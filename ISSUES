@@ -1,9 +1,9 @@
 THINGS TO DO
 --------------
-1) get run_unit_tests script parsing correctly
-2) test remote using aws invoke
-4) finish quick start documentation
-5) be better with device names. for example, i should be able to say "Alexa, ask
+* get run_unit_tests script parsing correctly
+* test remote using aws invoke
+* finish quick start documentation
+* be better with device names. for example, i should be able to say "Alexa, ask
   vera to turn on the bedroom light" instead of "Alexa, ask vera to to turn on device 1"
   This requires parsing the device information we get back from Vera via the /status
   endpoint and also extending the ASK voice model to parse out the names. 
@@ -17,13 +17,12 @@ TESTING
 TODOs
  - install server as service
  - logging feature
- - add config file support for psk
 
 On client
 -----------
 TESTING
  - talking to server with various security settings
- - running unit tests
+ - additional test cases in test_client
 
 QUESTIONS
  - What are session_attributes?
@@ -32,4 +31,3 @@ QUESTIONS
 
 TODOs
  - get_logs.sh - pulls cloudwatch log for debugging
- - add config file support for psk

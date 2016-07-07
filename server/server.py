@@ -53,16 +53,22 @@ JSON message format example (Server->Client):
 }
 """
 
-def handle_msg(s, vera_ip, vera_port, msg):
+def handle_msg(s, vera_ip, vera_port, msg, psk):
     print 'got msg: ' + msg.dumps()
     resp_data = None
+
+    # Create the message to send the response
+    if psk is not None:
+        resp = AVBMessage(encoding=AVBMessage.ENC_AES_CBC, psk=psk)
+    else:
+        resp = AVBMessage()
 
     # Parse the received message.
     data = msg.get_data()
     if data == None:
         print 'Failed to decode message!'
         resp_data = {'status': 1, 'err_str': 'bad message format', 'data': None}
-        resp = AVBMessage(data=resp_data)
+        resp.set_data(resp_data)
         s.sendall(resp.dumps())
         return False
 
@@ -90,7 +96,7 @@ def handle_msg(s, vera_ip, vera_port, msg):
     else:
         print 'invalid action'
         resp_data = {'status': 1, 'err_str': 'invalid action', 'data': None}
-        resp = AVBMessage(data=resp_data)
+        resp.set_data(resp_data)
         s.sendall(resp.dumps())
         return False
 
@@ -107,7 +113,7 @@ def handle_msg(s, vera_ip, vera_port, msg):
         except requests.exceptions.RequestException as e:
             print e
             resp_data = {'status': 2, 'err_str': 'requests exception', 'data': None}
-            resp = AVBMessage(data=resp_data)
+            resp.set_data(resp_data)
             s.sendall(resp.dumps())
             return False
 
@@ -115,7 +121,7 @@ def handle_msg(s, vera_ip, vera_port, msg):
             print 'Non-200 response from Vera'
             print 'Code: ' + str(r.status_code)
             resp_data = {'status': 2, 'err_str': 'bad response from Vera', 'data': None}
-            resp = AVBMessage(data=resp_data)
+            resp.set_data(resp_data)
             s.sendall(resp.dumps())
             return False
                         
@@ -137,21 +143,24 @@ def handle_msg(s, vera_ip, vera_port, msg):
             resp_data = {'status': 0, 'err_str': None, 'data': None}
 
         # Send the response
-        resp = AVBMessage(data=resp_data)
+        resp.set_data(resp_data)
         print 'sending: ' + resp.dumps()
         s.sendall(resp.dumps())
     else:
         # Send the simulated response (echo received data back)
         resp_data = {'status': 2, 'err_str': 'vera simulation', 'data': data}
-        resp = AVBMessage(data=resp_data)
+        resp.set_data(resp_data)
         print 'sending: ' + resp.dumps()
         s.sendall(resp.dumps())
 
     return True
 
 # Entry point for new thread to handle specific client connection
-def client_thread(secure_s, ip, port):
-    m = AVBMessage()
+def client_thread(secure_s, ip, port, psk):
+    if psk is not None:
+        m = AVBMessage(encoding=AVBMessage.ENC_AES_CBC, psk=psk)
+    else:
+        m = AVBMessage()
     
     while True:
         # Get a new message header
@@ -181,7 +190,7 @@ def client_thread(secure_s, ip, port):
         # Pass in IP address and port of vera (as strings). These are used to form
         # the URL to send the request to Vera.
         m.loads(msg)
-        if not handle_msg(secure_s, ip, str(port), m):
+        if not handle_msg(secure_s, ip, str(port), m, psk):
             print 'error handling message, server closing connection'
             secure_s.close()
             return
@@ -230,7 +239,9 @@ def main():
     #   1) none - just do regular connection (INSECURE)
     #   2) just the section - use ssl/tls but with no auth
     #   3) root_ca plus client cert/key- give out certificate to client
+    # Optionally, if psk is specified then we will use it to encrypt the message body
     security = 'none'
+    psk = None
     if cfg.has_section('security'):
         security = 'ssl'
         if cfg.has_option('security', 'root_ca') and cfg.has_option('security', 'cert') and cfg.has_option('security', 'key'):
@@ -239,8 +250,20 @@ def main():
             cert = cfg.get('security', 'cert')
             key = cfg.get('security', 'key')
 
+        if cfg.has_option('security', 'psk'):
+            try:
+                f = open(cfg.get('security', 'psk'), 'r')
+                # Note that the newline gets read, so we need to strip it
+                psk = f.read().rstrip('\n')
+                f.close()
+            except IOError as e:
+                print 'I/O error({0}): {1}'.format(e.errno, e.strerror)
+                psk = None
+
     print ('configuring server security profile as "' + security + '"')
-    
+    if psk is not None:
+        print ('using PSK from ' + cfg.get('security', 'psk'))
+
     # Open up the port and listen for connections
     # Create the socket
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -300,7 +323,7 @@ def main():
             secure_s = context.wrap_socket(new_s, server_side=True)
 
         # Kick off a thread to handle the new client
-        t = threading.Thread(target=client_thread, args=(secure_s, vera_ip, vera_port,))
+        t = threading.Thread(target=client_thread, args=(secure_s, vera_ip, vera_port, psk,))
         t.start()
         client_threads.append(t)
         print client_threads

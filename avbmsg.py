@@ -15,6 +15,8 @@ class AVBMessage:
     LENGTH_FIELD_SIZE = 4
     VERSION_FIELD_SIZE = 2
     ENCODING_FIELD_SIZE = 2
+    PSK_256_SIZE = 44 # bytes for 256 bit PSK encoded in base64
+    IV_SIZE = 24 # bytes for 16 byte IV encoded in base64
     MAX_MESSAGE_SIZE = 9999
 
     # Message version enums
@@ -32,8 +34,6 @@ class AVBMessage:
         self.data = ''
         self.psk = ''
         self.iv = ''
-        if psk is not None:
-            self.set_psk(psk)
         if data is not None:
             self.set_data(data)
         if version is not None:
@@ -46,6 +46,8 @@ class AVBMessage:
             if encoding != AVBMessage.ENC_PLAIN and encoding != AVBMessage.ENC_AES_CBC:
                 raise ValueError('Unsupported encoding type')
             self.encoding = encoding
+        if psk is not None:
+            self.set_psk(psk)
 
     # This function takes a base64 encoded key as a string
     def set_psk(self, psk):
@@ -55,8 +57,7 @@ class AVBMessage:
             raise ValueError('PSK not supported for ENC_PLAIN')
         elif self.encoding == AVBMessage.ENC_AES_CBC:
             # Key must be 16/24/32 bytes long (for our case, enforce 32 bytes)
-            # When encoded in base64 a 256 bit key will be 44 bytes long
-            if len(psk) != 44:
+            if len(psk) != AVBMessage.PSK_256_SIZE:
                 raise ValueError('Bad PSK length')
             self.psk = psk
         
@@ -143,6 +144,12 @@ class AVBMessage:
         self.version = int(msg[i:i+AVBMessage.VERSION_FIELD_SIZE])
         i += AVBMessage.VERSION_FIELD_SIZE
         self.encoding = int(msg[i:i+AVBMessage.ENCODING_FIELD_SIZE])
+        i += AVBMessage.ENCODING_FIELD_SIZE
+
+        # Strip out the IV if it is present
+        if self.encoding == AVBMessage.ENC_AES_CBC:
+            self.iv = msg[i:i+AVBMessage.IV_SIZE]
+            i += AVBMessage.IV_SIZE
 
         # The rest of the message is data
-        self.data = msg[AVBMessage.HEADER_SIZE:]
+        self.data = msg[i:]

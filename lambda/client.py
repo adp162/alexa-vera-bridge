@@ -141,6 +141,7 @@ def open_connection_to_vera():
     #   2) just the section - use ssl/tls but with no auth
     #   3) root_ca plus client cert/key- mutual auth
     security = 'none'
+    psk = None
     if cfg.has_section('security'):
         security = 'ssl'
         if cfg.has_option('security', 'root_ca') and cfg.has_option('security', 'cert') and cfg.has_option('security', 'key'):
@@ -149,7 +150,19 @@ def open_connection_to_vera():
             cert = cfg.get('security', 'cert')
             key = cfg.get('security', 'key')
 
+        if cfg.has_option('security', 'psk'):
+            try:
+                f = open(cfg.get('security', 'psk'), 'r')
+                # Note that the newline gets read, so we need to strip it
+                psk = f.read().rstrip('\n')
+                f.close()
+            except IOError as e:
+                #print 'I/O error({0}): {1}'.format(e.errno, e.strerror)
+                psk = None
+
     print ('configuring client security profile as "' + security + '"')
+    if psk is not None:
+        print ('using PSK from ' + cfg.get('security', 'psk'))
 
     # Create the socket
     sock = None
@@ -195,10 +208,37 @@ def close_connection_to_vera(s):
     print ('closed connection')
 
 def send_vera_message(s, data):
+    """
+    FIXME
+    It's sort of a hack that I have to do this because there's no clean way to
+    pass the psk read from open_connection_to_vera() to this function. I should
+    probably make the whole client connection part a class at some point and
+    just have the psk be a member of that class so I don't have to read it here
+    again.
+    FIXME
+    """
+    # Read the configuration file
+    psk = None
+    cfg = ConfigParser.RawConfigParser()
+    cfg.readfp( open('client.cfg') )
+    if cfg.has_section('security'):
+        if cfg.has_option('security', 'psk'):
+            # This worked on open so it should work again
+            f = open(cfg.get('security', 'psk'), 'r')
+            # Note that the newline gets read, so we need to strip it
+            psk = f.read().rstrip('\n')
+            f.close()
+
+    # Setup the AVB message
+    if psk is not None:
+        m = AVBMessage(encoding=AVBMessage.ENC_AES_CBC, psk=psk)
+    else:
+        m = AVBMessage()
+
     # Encode the message, send to Vera, and wait for response
-    msg = AVBMessage(data=data)
-    print ('sending msg: ' + msg.dumps())
-    s.sendall(msg.dumps())
+    m.set_data(data)
+    print ('sending msg: ' + m.dumps())
+    s.sendall(m.dumps())
 
     # Get a new message header
     chunks = []
@@ -212,7 +252,6 @@ def send_vera_message(s, data):
     resp = ''.join(chunks)
 
     # Get the length and wait for the rest
-    m = AVBMessage()
     m.loads(resp[0:AVBMessage.HEADER_SIZE])
     while nb < m.len():
         chunk = s.recv(min(m.len() - nb, 1024))
