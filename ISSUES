@@ -17,6 +17,7 @@ TESTING
 TODOs
  - install server as service
  - logging feature
+ - monitor client threads and periodically kill if they're taking too long
 
 On client
 -----------
