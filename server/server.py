@@ -161,15 +161,31 @@ def client_thread(secure_s, ip, port, psk):
         m = AVBMessage(encoding=AVBMessage.ENC_AES_CBC, psk=psk)
     else:
         m = AVBMessage()
-    
+
+    # Set the socket timeout. This will prevent a client from opening a connection
+    # and just sitting there, consuming resources. If no message is received within
+    # the timeout then an exception is raised and the thread will terminate
+    secure_s.settimeout(5.0)
+
     while True:
         # Get a new message header
         chunks = []
         nb = 0
         while nb < AVBMessage.HEADER_SIZE:
-            chunk = secure_s.recv(AVBMessage.HEADER_SIZE - nb)
+            try:
+                chunk = secure_s.recv(AVBMessage.HEADER_SIZE - nb)
+            except (socket.timeout, ssl.SSLError) as e:
+                print 'recv error: ' + str(e)
+                # Note that we issue a shutdown() here to notify the other end
+                # that we're closing the connection. If we just close the recv()
+                # on the client will just wait forever
+                secure_s.shutdown(socket.SHUT_RDWR)
+                secure_s.close()
+                return
+
             if chunk == '':
                 print 'connection broken or closed by client'
+                secure_s.close()
                 return
             chunks.append(chunk)
             nb += len(chunk)
@@ -178,9 +194,17 @@ def client_thread(secure_s, ip, port, psk):
         # Get the length and wait for the rest
         m.loads(msg)
         while nb < m.len():
-            chunk = secure_s.recv(min(m.len() - nb, 1024))
+            try:
+                chunk = secure_s.recv(min(m.len() - nb, 1024))
+            except (socket.timeout, ssl.SSLError) as e:
+                print 'recv error: ' + str(e)
+                secure_s.shutdown(socket.SHUT_RDWR)
+                secure_s.close()
+                return
+
             if chunk == '':
                 print 'connection broken or closed by client'
+                secure_s.close()
                 return
             chunks.append(chunk)
             nb += len(chunk)
@@ -309,7 +333,6 @@ def main():
 
     # Now that the server is listening, we can enter our main loop where we
     # wait for connections
-    client_threads = []
     while True:
         print 'waiting for connection...'
         # accept() will block until a client has tried to connect
@@ -325,8 +348,6 @@ def main():
         # Kick off a thread to handle the new client
         t = threading.Thread(target=client_thread, args=(secure_s, vera_ip, vera_port, psk,))
         t.start()
-        client_threads.append(t)
-        print client_threads
         
 if __name__ == '__main__':
     main()

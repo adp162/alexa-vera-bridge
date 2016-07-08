@@ -137,7 +137,7 @@ def open_connection_to_vera():
 
     # See what security options are specified in the config file
     # Valid combinations are:
-    #   1) none - just do regulat connection (INSECURE)
+    #   1) none - just do regular connection (INSECURE)
     #   2) just the section - use ssl/tls but with no auth
     #   3) root_ca plus client cert/key- mutual auth
     security = 'none'

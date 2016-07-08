@@ -3,6 +3,7 @@ import sys
 import os
 from shutil import copyfile
 import argparse
+import time
 
 # Actually use the client code to test sending server message
 # Note that you must have ../lambda in your PYTHONPATH variable for this
@@ -30,6 +31,7 @@ def run_test(num, data):
 
     # Close the connection
     client.close_connection_to_vera(socket)
+    print
 
 def main():
     # NOTE: These tests should run with the server option "--no-vera" specified
@@ -89,10 +91,34 @@ def main():
                  { 'id':1, 'action': {'type': 'get' } } ]
         run_test(4, data)
 
-        # TODO - more tests
         # TEST: leave socket open (eventually server should kill)
-        # TEST: poorly formatted message (server should kill)
+        print 'Running test #5'
+        (socket, msg) = client.open_connection_to_vera()
+        if socket == None:
+            print 'Error connecting to AVBServer: ' + msg
+            sys.exit()
+        print 'sleeping for 10s...'
+        # Server will close() the socket
+        time.sleep(10)
+        try:
+            resp = client.send_vera_message(socket, { 'id':1, 'action': {'type': 'get' } } )
+        except RuntimeError as e:
+            print 'Failed correctly with: ' + str(e)
+        print
+
+        # TEST: poorly formatted message (should catch AVBMessage exception)
+        #print 'Running test #6'
+        #(socket, msg) = client.open_connection_to_vera()
+        #if socket == None:
+        #    print 'Error connecting to AVBServer: ' + msg
+        #    sys.exit()
+        #try:
+        #    resp = client.send_vera_message(socket, 'bad message')
+        #except RuntimeError as e:
+        #    print 'Failed correctly with: ' + e
+
         # TEST: bombard server with simultaneous requests
+        # TODO - bunch of threads sending lots of messages at random times
 
     # Remove the security assets copied earlier
     os.remove('rootCA.pem')
