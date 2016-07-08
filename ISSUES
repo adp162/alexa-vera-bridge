@@ -7,6 +7,7 @@ THINGS TO DO
   vera to turn on the bedroom light" instead of "Alexa, ask vera to to turn on device 1"
   This requires parsing the device information we get back from Vera via the /status
   endpoint and also extending the ASK voice model to parse out the names. 
+* getting PyCrypto to lambda
 
 On server
 -----------

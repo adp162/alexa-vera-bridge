@@ -68,9 +68,14 @@ class AVBMessage:
     # This function takes a dictionary object (data) and converts it to a JSON
     # string that is stored as the message body
     def set_data(self, data):
+        if type(data) != dict:
+            raise ValueError('Message data type should be dict')
+
         # Turn to JSON string
-        #FIXME - catch json errors
-        self.data = json.dumps(data)
+        try:
+            self.data = json.dumps(data)
+        except:
+            data = None
         self.iv = ''
 
         # Generate random IV and encrypt using PSK
@@ -106,7 +111,6 @@ class AVBMessage:
             data = dec.rstrip('*')
 
         # Parse the JSON to a dict and return
-        # FIXME - catch json errors
         return json.loads(data)
 
     # Returns the message length

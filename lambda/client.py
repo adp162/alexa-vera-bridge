@@ -209,13 +209,12 @@ def close_connection_to_vera(s):
 
 def send_vera_message(s, data):
     """
-    FIXME
+    FIXME - reading PSK
     It's sort of a hack that I have to do this because there's no clean way to
     pass the psk read from open_connection_to_vera() to this function. I should
     probably make the whole client connection part a class at some point and
     just have the psk be a member of that class so I don't have to read it here
     again.
-    FIXME
     """
     # Read the configuration file
     psk = None

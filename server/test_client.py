@@ -94,9 +94,6 @@ def main():
         # TEST: leave socket open (eventually server should kill)
         print 'Running test #5'
         (socket, msg) = client.open_connection_to_vera()
-        if socket == None:
-            print 'Error connecting to AVBServer: ' + msg
-            sys.exit()
         print 'sleeping for 10s...'
         # Server will close() the socket
         time.sleep(10)
@@ -107,15 +104,22 @@ def main():
         print
 
         # TEST: poorly formatted message (should catch AVBMessage exception)
-        #print 'Running test #6'
-        #(socket, msg) = client.open_connection_to_vera()
-        #if socket == None:
-        #    print 'Error connecting to AVBServer: ' + msg
-        #    sys.exit()
-        #try:
-        #    resp = client.send_vera_message(socket, 'bad message')
-        #except RuntimeError as e:
-        #    print 'Failed correctly with: ' + e
+        print 'Running test #6'
+        (socket, msg) = client.open_connection_to_vera()
+        try:
+            resp = client.send_vera_message(socket, 'bad message')
+        except ValueError as e:
+            print 'Failed correctly with: ' + str(e)
+        print
+
+        # TEST: message too long (should catch AVBMessage exception)
+        print 'Running test #7'
+        (socket, msg) = client.open_connection_to_vera()
+        try:
+            resp = client.send_vera_message(socket, { 't'*9999:1 } )
+        except ValueError as e:
+            print 'Failed correctly with: ' + str(e)
+        print
 
         # TEST: bombard server with simultaneous requests
         # TODO - bunch of threads sending lots of messages at random times
