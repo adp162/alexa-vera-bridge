@@ -44,7 +44,7 @@ PSK="$SEC_PATH/psk.bin"
 SECURITY_FILES="$ROOT_CA $CLIENT_CERT $CLIENT_KEY $PSK"
 
 # Python files
-PYTHON_FILES="./client.py"
+PYTHON_FILES="./client.py ../avbmsg.py"
 
 # Create a temp directory and copy everything there
 if [ -d ./tmp ]; then
