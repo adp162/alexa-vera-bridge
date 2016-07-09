@@ -11,19 +11,12 @@ THINGS TO DO
 
 On server
 -----------
-TESTING
- - multiple clients
- - stress testing (unecessary but fun)
-
 TODOs
  - install server as service
  - logging feature
 
 On client
 -----------
-TESTING
- - additional test cases in test_client
-
 QUESTIONS
  - What are session_attributes?
  - What are the various flows a skill gets invoked with?
