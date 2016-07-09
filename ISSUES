@@ -1,7 +1,12 @@
 THINGS TO DO
 --------------
-* get run_unit_tests script parsing correctly
-* test remote using aws invoke
+* unit testing
+  - series of inputs to lambda function and the expected behavior
+  - script will start server in correct mode, upload correct client code and
+    use aws invoke to test
+  - test cases are text input (JSON) and text output (JSON)
+  - on test case failure the cloudwatch logs are pulled
+
 * finish quick start documentation
 * be better with device names. for example, i should be able to say "Alexa, ask
   vera to turn on the bedroom light" instead of "Alexa, ask vera to to turn on device 1"

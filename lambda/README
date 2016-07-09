@@ -9,9 +9,8 @@ File Descriptions
 -------------------
 client.cfg - Sample configuration file for Lambda client
 client.py - Lambda client implementation
-run_unit_tests.sh - Shell script to runs a series of tests against the client
 upload.sh - Shell script to create (and optionally upload) Lambda bundle
-test/ - Directory containing tests to run
+get_logs.sh - Pulls the cloudwatch logs to your local machine
 
 -------------------------
 Installing Dependencies
