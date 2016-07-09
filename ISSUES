@@ -26,6 +26,3 @@ QUESTIONS
  - What are session_attributes?
  - What are the various flows a skill gets invoked with?
  - do i import everything with __future__?
-
-TODOs
- - get_logs.sh - pulls cloudwatch log for debugging

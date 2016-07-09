@@ -35,6 +35,7 @@ if [ "$ALL" = "no" ]; then
   LIMIT="--limit $EVENTS"
 fi
 
+# TODO write to log_<time>.txt file in logs/ directory
 aws logs get-log-events --log-group-name "/aws/lambda/$LAMBDA_NAME" \
     --log-stream-name "20150601" \
     $LIMIT
