@@ -35,12 +35,7 @@ if [ -f $LOGFILE ]; then
 fi
 
 # Grab all the streams available for this log group
-#CMD="aws logs describe-log-streams"
-#ARGS="--log-group-name \"/aws/lambda/$LAMBDA_NAME\" --order-by \"LastEventTime\" --descending"
-#echo "$CMD $ARGS"
-#STREAM_NAMES=`$CMD $ARGS | cut -f7 -`
-
-STREAM_NAMES=`aws logs describe-log-streams --log-group-name "/aws/lambda/myTestSkill" --order-by "LastEventTime" --descending | cut -f7 -`
+STREAM_NAMES=`aws logs describe-log-streams --log-group-name "/aws/lambda/$LAMBDA_NAME" --order-by "LastEventTime" --descending | cut -f7 -`
 
 STREAM_CNT=`echo $STREAM_NAMES | wc -w`
 echo "Available streams: $STREAM_CNT"
