@@ -13,6 +13,9 @@ lambda/*.cfg
 server/*.cfg
 !server/server.cfg
 
+# Ignore cloudwatch logs
+lambda/logs/*.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
