@@ -1,24 +1,20 @@
 #!/bin/sh
 
 # Set some default values
-ALL="no"
-EVENTS="10"
+STREAMS=1
 LAMBDA_NAME="myTestSkill"
 
 # Parse the command line arguments
-while getopts ae:l: opt
+while getopts s:l: opt
 do
   case "$opt" in
-    a)  ALL="yes";;
-    e)  EVENTS="$OPTARG";;
+    s)  STREAMS=$OPTARG;;
     l)  LAMBDA_NAME="$OPTARG";;
-    c)  CONFIG="$OPTARG";;
     \?)
       # unknown flag
-      echo >&2 "usage: $0 [-a] [-l name] [-e events]"
-      echo >&2 "-a: pull all logs"
+      echo >&2 "usage: $0 [-l name] [-s streams]"
       echo >&2 "-l: 'name' is your Lambda function name"
-      echo >&2 "-e: number of latest events to pull (default 10)"
+      echo >&2 "-s: number of latest streams to pull (default 1)"
       exit 1;;
   esac
 done
@@ -30,13 +26,42 @@ command -v aws >/dev/null 2>&1 || {
   exit 1
 }
 
-# Make the AWS CLI call to pull the logs
-if [ "$ALL" = "no" ]; then
-  LIMIT="--limit $EVENTS"
+# Get the log file name to write data to
+TIME=`date +%F_%H%M%S`
+LOGFILE="./logs/$TIME.txt"
+if [ -f $LOGFILE ]; then
+    echo "Overwriting $LOGFILE"
+    rm $LOGFILE
 fi
 
-# TODO write to log_<time>.txt file in logs/ directory
-aws logs get-log-events --log-group-name "/aws/lambda/$LAMBDA_NAME" \
-    --log-stream-name "20150601" \
-    $LIMIT
+# Grab all the streams available for this log group
+#CMD="aws logs describe-log-streams"
+#ARGS="--log-group-name \"/aws/lambda/$LAMBDA_NAME\" --order-by \"LastEventTime\" --descending"
+#echo "$CMD $ARGS"
+#STREAM_NAMES=`$CMD $ARGS | cut -f7 -`
 
+STREAM_NAMES=`aws logs describe-log-streams --log-group-name "/aws/lambda/myTestSkill" --order-by "LastEventTime" --descending | cut -f7 -`
+
+STREAM_CNT=`echo $STREAM_NAMES | wc -w`
+echo "Available streams: $STREAM_CNT"
+
+# For each stream, grab the events and output to log file
+CNT=0
+echo "Writing event data to $LOGFILE"
+for stream in $STREAM_NAMES
+do
+    echo "Getting events from stream '$stream'"
+
+    # Write events from each stream into log file
+    EVENTS=`aws logs get-log-events --log-group-name "/aws/lambda/$LAMBDA_NAME" --log-stream-name "$stream" | cut -f3-`
+    echo "$EVENTS" >> $LOGFILE
+
+    CNT=$((CNT+1))
+    if [ $CNT -ge $STREAMS ]; then
+        break
+    fi
+done
+
+# Cleanup log file by removing blank lines
+grep -v '^$' $LOGFILE > ./logs/tmp
+mv ./logs/tmp $LOGFILE
